@@ -249,6 +249,9 @@ def main():
     quantizer = faiss.IndexFlatL2(out_feats)
     index = faiss.IndexIVFFlat(quantizer, out_feats, 2, faiss.METRIC_L2)
 
+    if not hasattr(index, 'add_with_ids') and callable(index.add_with_ids):
+        index = faiss.IndexIDMap2(index)
+
     print("Training...")
     print("Extracting features...")
     train = compute_features(feature_model, dataset_train)
@@ -258,7 +261,8 @@ def main():
     print(feats.shape)
     print(feats[0].shape)
     print("Faiss Train + Index")
-    index.train(feats)
+    if hasattr(index, 'train') and callable(index.train):
+        index.train(feats)
     index.add_with_ids(feats, np.array(labels).flatten())
 
     print("Testing...")
