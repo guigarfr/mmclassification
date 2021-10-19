@@ -4,6 +4,8 @@ from abc import ABCMeta, abstractmethod
 
 import mmcv
 import numpy as np
+import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from mmcls.core.evaluation import precision_recall_f1, support
@@ -140,7 +142,8 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         else:
             metrics = metric
         allowed_metrics = [
-            'accuracy', 'precision', 'recall', 'f1_score', 'support'
+            'accuracy', 'precision', 'recall', 'f1_score', 'support',
+            'crossentropy'
         ]
         eval_results = {}
         results = np.vstack(results)
@@ -179,6 +182,13 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                 eval_results.update(
                     {k: v.item()
                      for k, v in eval_results_.items()})
+
+        if 'crossentropy' in metrics:
+            c_entropy_result = F.nll_loss(
+                torch.log(torch.from_numpy(results)),
+                torch.from_numpy(gt_labels)
+            )
+            eval_results['cross_entropy_loss'] = float(c_entropy_result)
 
         if 'support' in metrics:
             support_value = support(
