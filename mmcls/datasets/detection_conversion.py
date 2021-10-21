@@ -1,4 +1,6 @@
+from abc import ABCMeta
 import copy
+import json
 import os.path as osp
 import random
 import tempfile
@@ -14,12 +16,18 @@ from .builder import DATASETS
 from .base_dataset import BaseDataset
 
 
-@DATASETS.register_module()
-class OpenBrandDataset(BaseDataset):
+class DetectionConversionBase(BaseDataset, metaclass=ABCMeta):
 
-    def __init__(self, *args, bbox_size_threshold=50, **kwargs):
-        kwargs.setdefault("classes", "sample_test/labelList.txt")
+    def __init__(self, *args, bbox_size_threshold=50, class_unifier=None,
+                 **kwargs):
+        if class_unifier:
+            with open(class_unifier, 'r') as doc:
+                self.class_unifier = json.load(doc)
+        else:
+            self.class_unifier = dict()
+
         super().__init__(*args, **kwargs)
+
         self.expanded_annotations = []
         for idx in range(len(self.data_infos)):
             ann_info = self.get_ann_info(idx)
@@ -50,6 +58,10 @@ class OpenBrandDataset(BaseDataset):
         else:
             return len(self.expanded_annotations)
 
+
+@DATASETS.register_module()
+class OpenBrandDataset(DetectionConversionBase):
+
     def load_annotations(self):
         """Load annotation from COCO style annotation file.
 
@@ -63,12 +75,15 @@ class OpenBrandDataset(BaseDataset):
         self.coco = COCO(self.ann_file)
         self.cat_ids = self.coco.get_cat_ids(cat_names=self.CLASSES)
         self.cat2label = {cat: i for i, cat in enumerate(self.CLASSES)}
-        self.cat2label.update(
-            {
-                ('OB', coco_cat['id']): self.cat2label[coco_cat['name']]
-                for coco_cat in self.coco.cats.values()
-            }
-        )
+
+        for coco_cat in self.coco.cats.values():
+            name = coco_cat['name'].lower()
+            if name in self.class_unifier:
+                name = self.class_unifier[name]
+
+            # Forcing the new name to be present in cat2label for consistency
+            self.cat2label[('OB', coco_cat['id'])] = self.cat2label[name]
+
         self.img_ids = self.coco.get_img_ids()
         data_infos = []
         for i in self.img_ids:
@@ -415,7 +430,7 @@ class OpenBrandDataset(BaseDataset):
 
 
 @DATASETS.register_module()
-class XMLDataset(BaseDataset):
+class XMLDataset(DetectionConversionBase):
     """XML dataset for detection.
 
     Args:
@@ -430,42 +445,12 @@ class XMLDataset(BaseDataset):
                  min_size=None,
                  img_subdir='JPEGImages',
                  ann_subdir='Annotations',
-                 bbox_size_threshold=50,
                  **kwargs):
         self.img_subdir = img_subdir
         self.ann_subdir = ann_subdir
-        super(XMLDataset, self).__init__(**kwargs)
-        self.cat2label = {cat: i for i, cat in enumerate(self.CLASSES)}
         self.min_size = min_size
-        self.expanded_annotations = []
-        for idx in range(len(self.data_infos)):
-            ann_info = self.get_ann_info(idx)
-            for adx in range(len(ann_info['bboxes'])):
-                bbox = ann_info['bboxes'][adx]
-                w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-                if w < bbox_size_threshold or h < bbox_size_threshold:
-                    continue
-                self.expanded_annotations.append(
-                    dict(img_prefix=self.data_prefix,
-                         img_info=self.data_infos[idx],
-                         bbox_fields=list(),
-                         ann_info=dict(
-                             bboxes=bbox.reshape(1, -1),
-                             labels=ann_info['labels'][adx].reshape(1, -1),
-                             bboxes_ignore=np.empty((0, 4)),
-                             labels_ignore=np.empty(0),
-                         ))
-                )
 
-    def prepare_data(self, idx):
-        return self.pipeline(copy.deepcopy(self.expanded_annotations[idx]))
-
-    def __len__(self):
-        """Length of the dataset."""
-        if self.test_mode:
-            return len(self.data_infos)
-        else:
-            return len(self.expanded_annotations)
+        super(XMLDataset, self).__init__(**kwargs)
 
     def get_gt_labels(self):
         """Get all ground-truth labels (categories).
@@ -489,6 +474,7 @@ class XMLDataset(BaseDataset):
         Returns:
             list[dict]: Annotation info from XML file.
         """
+        self.cat2label = {cat: i for i, cat in enumerate(self.CLASSES)}
 
         data_infos = []
         img_ids = mmcv.list_from_file(self.ann_file)
@@ -552,7 +538,9 @@ class XMLDataset(BaseDataset):
         bboxes_ignore = []
         labels_ignore = []
         for obj in root.findall('object'):
-            name = obj.find('name').text
+            name = obj.find('name').text.lower()
+            if name in self.class_unifier:
+                name = self.class_unifier[name]
             if name not in self.CLASSES:
                 continue
             label = self.cat2label[name]
