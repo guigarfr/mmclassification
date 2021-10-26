@@ -26,6 +26,7 @@ class DetectionConversionBase(BaseDataset, metaclass=ABCMeta):
         else:
             self.class_unifier = dict()
 
+        self.cat2label = None
         super().__init__(*args, **kwargs)
 
         self.expanded_annotations = []
@@ -94,8 +95,9 @@ class OpenBrandDataset(DetectionConversionBase):
             if name in self.class_unifier:
                 name = self.class_unifier[name]
 
-            # Forcing the new name to be present in cat2label for consistency
-            self.cat2label[('OB', coco_cat['id'])] = self.cat2label[name]
+            if name in self.cat2label:
+                self.cat2label[('OB', coco_cat['id'])] = self.cat2label[name]
+            # If name is not in cat2label it should be a discarded class
 
         self.img_ids = self.coco.get_img_ids()
         data_infos = []

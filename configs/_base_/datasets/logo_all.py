@@ -126,8 +126,8 @@ test_pipeline = [
     dict(type='Collect', keys=['img']),
 ]
 
-all_classes = data_root + 'all_classes_v2.txt'
-class_unifier = data_root + 'class_unification_dict_v2.json'
+all_classes = data_root + 'all_classes_v4.txt'
+class_unifier = data_root + 'class_unification_dict_v4.json'
 ob_root = data_root + 'OpenBrands/'
 train_openbrand = dict(
         type='ConcatDataset',

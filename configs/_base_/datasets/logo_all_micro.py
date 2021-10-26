@@ -23,8 +23,8 @@ test_pipeline = [
     dict(type='Collect', keys=['img']),
 ]
 
-all_classes = data_root + 'all_classes_v2.txt'
-class_unifier = data_root + 'class_unification_dict_v2.json'
+all_classes = data_root + 'all_classes_v4.txt'
+class_unifier = data_root + 'class_unification_dict_v4.json'
 ob_root = data_root + 'OpenBrands/'
 train_openbrand = dict(
         type='ConcatDataset',
@@ -101,7 +101,7 @@ data = dict(
             dict(
                 type='XMLDataset',
                 classes=all_classes,
-                ann_file=ld_root + 'train_reduced.txt',
+                ann_file=ld_root + 'train_micro.txt',
                 ann_subdir='',
                 data_prefix=ld_root,
                 img_subdir='',
@@ -111,7 +111,7 @@ data = dict(
             dict(
                 type='XMLDataset',
                 classes=all_classes,
-                ann_file=rp_root + 'ImageSets/Main/train.txt',
+                ann_file=rp_root + 'ImageSets/Main/train_micro.txt',
                 ann_subdir='Annotations',
                 data_prefix=rp_root,
                 img_subdir='JPEGImages',
@@ -124,7 +124,7 @@ data = dict(
             dict(
                 type='XMLDataset',
                 classes=all_classes,
-                ann_file=ld_root + 'val_reduced.txt',
+                ann_file=ld_root + 'val_micro.txt',
                 ann_subdir='',
                 data_prefix=ld_root,
                 img_subdir='',
@@ -134,7 +134,7 @@ data = dict(
             dict(
                 type='XMLDataset',
                 classes=all_classes,
-                ann_file=rp_root + 'ImageSets/Main/validation.txt',
+                ann_file=rp_root + 'ImageSets/Main/validation_micro.txt',
                 ann_subdir='Annotations',
                 data_prefix=rp_root,
                 img_subdir='JPEGImages',
@@ -147,7 +147,7 @@ data = dict(
              dict(
                  type='XMLDataset',
                  classes=all_classes,
-                 ann_file=ld_root + 'test_reduced.txt',
+                 ann_file=ld_root + 'test_micro.txt',
                  ann_subdir='',
                  data_prefix=ld_root,
                  img_subdir='',
@@ -157,7 +157,7 @@ data = dict(
              dict(
                  type='XMLDataset',
                  classes=all_classes,
-                 ann_file=rp_root + 'ImageSets/Main/test.txt',
+                 ann_file=rp_root + 'ImageSets/Main/test_micro.txt',
                  ann_subdir='Annotations',
                  data_prefix=rp_root,
                  img_subdir='JPEGImages',

@@ -22,7 +22,7 @@ _base_ = [
     '../_base_/default_runtime.py'
 ]
 
-model = dict(head=dict(num_classes=3591))
+model = dict(head=dict(num_classes=1866))
 
 data = dict(
     samples_per_gpu=128,
