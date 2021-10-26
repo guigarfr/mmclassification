@@ -143,7 +143,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
             metrics = metric
         allowed_metrics = [
             'accuracy', 'precision', 'recall', 'f1_score', 'support',
-            'crossentropy'
+            'crossentropy', 'class_crossover'
         ]
         eval_results = {}
         results = np.vstack(results)
@@ -182,6 +182,32 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                 eval_results.update(
                     {k: v.item()
                      for k, v in eval_results_.items()})
+
+        if 'class_crossover' in metrics:
+            n_classes = len(self.CLASSES)
+            class_matrix = np.zeros((n_classes, n_classes))
+            samples_per_class = [0] * n_classes
+            for result, true_label in zip(results, gt_labels):
+                class_matrix[true_label, :] += result
+                samples_per_class[true_label] += 1
+
+            class_matrix /= np.transpose([samples_per_class])
+            class_std = np.std(class_matrix, axis=1)
+
+            crossover_dict = dict()
+            for i in range(n_classes):
+                # Max value minus one standard deviation seems a good threshold
+                threshold = class_matrix[i][i] - class_std[i]
+                if threshold < np.mean(class_matrix[i]):
+                    continue
+                top_cls = set(
+                    np.argwhere(class_matrix[i] > threshold).flatten()
+                )
+                top_cls.discard(i)
+                if top_cls:
+                    crossover_dict[i] = top_cls
+
+            eval_results['class_crossover'] = crossover_dict
 
         if 'crossentropy' in metrics:
             c_entropy_result = F.nll_loss(

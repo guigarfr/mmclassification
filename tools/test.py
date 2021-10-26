@@ -123,7 +123,7 @@ def main():
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True
     cfg.model.pretrained = None
-    cfg.data.test.test_mode = True
+    # cfg.data.test.test_mode = True
 
     assert args.metrics or args.out, \
         'Please specify at least one of output path and evaluation metrics.'
@@ -183,17 +183,20 @@ def main():
     if rank == 0:
         results = {}
         if args.metrics:
-            eval_results = dataset.evaluate(outputs, args.metrics,
-                                            args.metric_options)
-            results.update(eval_results)
-            for k, v in eval_results.items():
-                if isinstance(v, np.ndarray):
-                    v = [round(out, 2) for out in v.tolist()]
-                elif isinstance(v, Number):
-                    v = round(v, 2)
-                else:
-                    raise ValueError(f'Unsupport metric type: {type(v)}')
-                print(f'\n{k} : {v}')
+            for metric in args.metrics:
+                eval_results = dataset.evaluate(
+                    outputs, metric=metric, metric_options=args.metric_options)
+                results.update(eval_results)
+                for k, v in eval_results.items():
+                    if isinstance(v, np.ndarray):
+                        v = [round(out, 2) for out in v.tolist()]
+                    elif isinstance(v, Number):
+                        v = round(v, 2)
+                    elif isinstance(v, dict):
+                        pass
+                    else:
+                        raise ValueError(f'Unsupport metric type: {type(v)}')
+                    print(f'\n{k} : {v}')
         if args.out:
             if 'none' not in args.out_items:
                 scores = np.vstack(outputs)

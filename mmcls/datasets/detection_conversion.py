@@ -51,6 +51,19 @@ class DetectionConversionBase(BaseDataset, metaclass=ABCMeta):
     def prepare_data(self, idx):
         return self.pipeline(copy.deepcopy(self.expanded_annotations[idx]))
 
+    def evaluate(self, *args, **kwargs):
+        eval_results = super().evaluate(*args, **kwargs)
+        if 'class_crossover' in eval_results:
+            label2cat = {i: c for i, c in enumerate(self.CLASSES)}
+            class_crossover_label = dict()
+            for k, v in eval_results['class_crossover'].items():
+                class_crossover_label[label2cat[k]] = set(
+                    label2cat[value] for value in v)
+
+            eval_results['class_crossover_label'] = class_crossover_label
+
+        return eval_results
+
     def __len__(self):
         """Length of the dataset."""
         if self.test_mode:

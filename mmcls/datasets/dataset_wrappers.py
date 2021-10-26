@@ -46,16 +46,17 @@ class ConcatDataset(_ConcatDataset):
             result = dataset.evaluate(dataset_results, **kwargs)
             if isinstance(dataset, ConcatDataset):
                 result = {k: v
-                          for k, v in result.items()
-                          if not isinstance(v, dict)}
+                          for k, v in result.items()}
                 all_results[f'concat_{dataset_id}'] = result
-            else:
+            elif result:
                 all_results[dataset.ann_file] = result
             current_i = last_i
 
         accumulated_results = dict()
         for result in all_results.values():
             for k, v in result.items():
+                if isinstance(v, dict):
+                    continue
                 if k in accumulated_results:
                     accumulated_results[k] += [v]
                 else:
