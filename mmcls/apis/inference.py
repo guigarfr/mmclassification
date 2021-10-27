@@ -89,6 +89,31 @@ def inference_model(model, img):
     return result
 
 
+def inference_get_features(model, img):
+    cfg = model.cfg
+    device = next(model.parameters()).device  # model device
+    # build the data pipeline
+    if isinstance(cfg.data.test, list):
+        test_pipeline = cfg.data.test[0].pipeline
+    else:
+        test_pipeline = cfg.data.test.pipeline
+    while test_pipeline[0]['type'] in [
+        'LoadImageFromFile', 'LoadAnnotations', 'CropBoundingBox'
+    ]:
+        test_pipeline.pop(0)
+    data = dict(img=img)
+    data = Compose(test_pipeline)(data)
+    data = collate([data], samples_per_gpu=1)
+    if next(model.parameters()).is_cuda:
+        # scatter to specified GPU
+        data = scatter(data, [device])[0]
+    # forward the model
+    with torch.no_grad():
+        return list(
+            model.extract_feats([data['img']])
+        )[0][0].cpu().detach().numpy().flatten()
+
+
 def show_result_pyplot(model, img, result, fig_size=(15, 10), wait_time=0):
     """Visualize the classification results on the image.
 
