@@ -18,17 +18,17 @@
 
 _base_ = [
     '../_base_/models/resnet50_pretrained.py',
-    '../_base_/datasets/rp_all_ds.py',
+    '../_base_/datasets/logo_all.py',
     '../_base_/default_runtime.py'
 ]
 
-model = dict(head=dict(num_classes=3793))
+model = dict(head=dict(num_classes=1866))
 
 data = dict(
     samples_per_gpu=128,
     workers_per_gpu=8,
 )
-evaluation = dict(interval=1, metric=['accuracy', 'crossentropy'])
+evaluation = dict(interval=5, metric=['accuracy', 'crossentropy'])
 optimizer = dict(type='SGD', lr=0.2, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
