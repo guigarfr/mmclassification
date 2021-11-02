@@ -4,6 +4,7 @@ import collections
 import datetime
 import logging
 import os
+import pickle
 import tempfile
 import time
 import warnings
@@ -82,6 +83,16 @@ def parse_args():
         type=float,
         default=0.3,
         help='score threshold (default: 0.3)')
+
+    parser.add_argument(
+        '--save-results',
+        action='store_true',
+        help='whether to use gpu to collect results.')
+    parser.add_argument(
+        '--results-prefix',
+        default='res',
+        help='Result file prefix (only used if results being stored).')
+
     parser.add_argument(
         '--gpu-collect',
         action='store_true',
@@ -131,6 +142,13 @@ def parse_args():
         type=argparse.FileType("w+"),
         help='File to store output.')
 
+    parser.add_argument(
+        '--baseline',
+        default=None,
+        type=argparse.FileType("r+b"),
+        help='Baseline results.')
+
+
     parser.add_argument('--local_rank', type=int, default=0)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
@@ -147,6 +165,7 @@ def parse_args():
 
 
 import itertools
+
 
 def get_dataset_config(cfg):
     if isinstance(cfg, Sequence):
@@ -222,10 +241,13 @@ def feature_iterator(model, dataset, batch_size=700):
     for img_labels in my_iter:
         imgs, labels = zip(*img_labels)
         with torch.no_grad():
-            feats = model.extract_feat(
-                torch.as_tensor(imgs)
-            )
+            feats = model.extract_feat(torch.stack(imgs))
         yield feats[0].numpy().astype('float32'), np.array(labels)
+
+
+def baseline_iter(file_p):
+    while True:
+        yield pickle.load(file_p)
 
 
 def main():
@@ -272,7 +294,6 @@ def main():
     add_gt_label_to_pipeline(dataset_train)
     add_gt_label_to_pipeline(dataset_test)
 
-    import pickle
     with open('class_labels', 'wb+') as f:
         pickle.dump(class_dict, f)
 
@@ -283,11 +304,11 @@ def main():
         args.out.write(
             'Index\tMetric\t'
             'Sec-Train\tSec-Index\tSec-Search\t'
-            'Bytes-faiss\tBytes-idx-ram\tBytes-idx-disk'
-            '{}\n'.format(
-                '\t'.join(['Top-{}-Acc'.format(k) for k in range(1, args.k + 1)])
+            'Bytes-faiss\tBytes-idx-ram\tBytes-idx-disk\t'
+            '{}\t{}\n'.format(
+                '\t'.join(['Top-{}-Acc'.format(k) for k in range(1, args.k + 1)]),
+                '\t'.join(['Top-{}-Search-Acc'.format(k) for k in range(1, args.k + 1)]),
             )
-
         )
 
     import faiss
@@ -302,14 +323,13 @@ def main():
     lsh_index_4 = faiss.IndexIDMap(faiss.IndexLSH(out_feats, out_feats*4))
     lsh_index_2 = faiss.IndexIDMap(faiss.IndexLSH(out_feats, out_feats*2))
 
-    baseline = []
-    filling_baseline = False
-    for faiss_index, faiss_metric in (
-        ("IDMap,Flat", faiss.METRIC_L2),
-        (lsh_index_8, "IDMap,IndexLSH{}".format(out_feats*16)),
-        (lsh_index_8, "IDMap,IndexLSH{}".format(out_feats*8)),
-        (lsh_index_4, "IDMap,IndexLSH{}".format(out_feats*4)),
-        (lsh_index_2, "IDMap,IndexLSH{}".format(out_feats*2)),
+    for faiss_name, faiss_index, faiss_metric in (
+        ("IDMap_Flat_L2", "IDMap,Flat", faiss.METRIC_L2),
+        ("IDMap_Flat_IP", "IDMap,Flat", faiss.METRIC_INNER_PRODUCT),
+        ("IDMap,IndexLSH{}".format(out_feats*16), lsh_index_8, None),
+        ("IDMap,IndexLSH{}".format(out_feats*8), lsh_index_8, None),
+        ("IDMap,IndexLSH{}".format(out_feats*4), lsh_index_4, None),
+        ("IDMap,IndexLSH{}".format(out_feats*2), lsh_index_2, None),
         # # ("IDMap,Flat", faiss.METRIC_INNER_PRODUCT),
         # ("IDMap,HNSW64,Flat", faiss.METRIC_L2),
         # ("IDMap,HNSW128,Flat", faiss.METRIC_L2),
@@ -329,10 +349,13 @@ def main():
         # ("IDMap,PCA32,IVF55,PQ8+8", faiss.METRIC_L2),
     ):
 
-        if not baseline:
-            filling_baseline = True
-
         del index
+
+        if args.baseline:
+            args.baseline.seek(0)
+            bs_iter = baseline_iter(args.baseline)
+        else:
+            bs_iter = None
 
         if isinstance(faiss_index, str):
             logging.info("Using index %s with metric %s", faiss_index, faiss_metric)
@@ -343,8 +366,7 @@ def main():
                 continue
         else:
             index = faiss_index
-            faiss_index = faiss_metric  # store in variable to save in out file
-            logging.info("Using index %s", faiss_index)
+            logging.info("Using index %s", faiss_name)
 
         logging.info("Extracting features for train batch #1...")
         feat_iter = feature_iterator(
@@ -385,10 +407,15 @@ def main():
         if b_failed is not None:
             raise b_failed
 
+        f_result = open(
+            "{}_{}.pkl".format(args.results_prefix, faiss_name),
+            mode="w+b",
+        ) if args.save_results else None
+
         logging.info("Extracting test features...")
         t_search = 0
         top_hits = collections.defaultdict(int)
-        search_hits = []
+        search_hits = collections.defaultdict(list)
         n_logos = 0
         for i, (feats, labels) in enumerate(
                 feature_iterator(
@@ -397,38 +424,40 @@ def main():
                     batch_size=args.batch_predict or 100),
                 start=1):
             logging.info(
-                "Search batch #%s (contains %s feats of length %s)",
+                "Search batch #%s (%s feats of length %s)",
                 i, len(feats), len(feats[0]))
 
             t0 = time.time()
             ds, ids = index.search(feats, args.k)
             t_search += (time.time() - t0)
 
-            sorted_by_distance = list(
-                list(
-                    map(lambda x: x[1],
-                        sorted(zip(ind_ds, ind_ids), key=lambda x: x[0])
-                        )
-                ) for ind_ds, ind_ids in zip(ds, ids))
+            if f_result is not None:
+                for distances, indexes in zip(ds, ids):
+                    pickle.dump((distances, indexes), f_result)
 
-            for true_label, candidates in zip(labels, sorted_by_distance):
-                top_candidates = candidates[:args.k]
+            for true_label, distances, indexes in zip(labels, ds, ids):
+                top_candidates = indexes[:args.k]
 
                 if not len(top_candidates):
                     logging.warning("Image with no candidates")
 
-                for ith, (candidate, distance) in top_candidates:
+                for ith, candidate in enumerate(top_candidates, start=1):
                     if true_label == candidate:
-                        for k in range(ith, args.k):
+                        for k in range(ith, args.k + 1):
                             top_hits[k] += 1
+                        break
 
-                baseline_res = sorted_by_distance if filling_baseline else baseline[i]
-                search_hits.append(np.in1d(baseline_res, sorted_by_distance))
+                if bs_iter:
+                    baseline_dss, baseline_ids = next(bs_iter)
+                    for k in range(args.k):
+                        search_hits[k].append(
+                            np.in1d(baseline_ids[:k+1], indexes[:k+1])
+                        )
 
                 n_logos += 1
 
-            if filling_baseline:
-                baseline.append(sorted_by_distance)
+        if f_result is not None:
+            f_result.close()
 
         dt_train = datetime.timedelta(seconds=t_train)
         dt_index = datetime.timedelta(seconds=t_index)
@@ -448,8 +477,20 @@ def main():
         accuracies_label = collections.defaultdict(float)
         for k, val in top_hits.items():
             acc = val / n_logos
-            logging.info("Top-{} Accuracy: %.4f", k, acc)
+            logging.info("Top-%s Accuracy: %.4f", k, acc)
             accuracies_label[k] = acc
+
+        # Search accuracies
+        if args.baseline:
+            search_accuracies = collections.defaultdict(float)
+            for k, s_hits_list in search_hits.items():
+                s_hits = np.vstack(s_hits_list)
+                sum_hits = np.sum(s_hits, axis=1)
+                s_acc = np.average(sum_hits / (k + 1))
+                search_accuracies[k] = s_acc
+                logging.info("Top-%s Search Accuracy: %.4f", k + 1, s_acc)
+        else:
+            search_accuracies = None
 
         logging.info("Train time %s", str(dt_train))
         logging.info("Index time %s", str(dt_index))
@@ -457,18 +498,33 @@ def main():
 
         if args.out is not None:
             args.out.write(
-                "{}\t{}\t{:.4f}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                faiss_index, faiss_metric,
-                '\t'.join(['{:.4f}'.format(acc) for acc in accuracies_label]),
-                t_train, t_index, t_search,
-                mem_faiss_proc, mem_faiss_idx_ram, mem_faiss_idx_disk
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                    faiss_name, faiss_metric or 'default',
+                    t_train, t_index, t_search,
+                    mem_faiss_proc, mem_faiss_idx_ram, mem_faiss_idx_disk,
+                    '\t'.join(
+                        [
+                            '{:.4f}'.format(accuracies_label[k+1])
+                            for k in range(args.k)
+                        ]
+                    ),
+                    '\t'.join(
+                        [
+                            '{:.4f}'.format(search_accuracies[k])
+                            if search_accuracies is not None
+                            else '-'
+                            for k in range(args.k)
+                        ]
+                    )
                 )
             )
             args.out.flush()
 
-        filling_baseline = False
+    if args.baseline:
+        args.baseline.close()
 
-
+    if bs_iter is not None:
+        bs_iter.close()
     args.out.close()
 
 
