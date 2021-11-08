@@ -18,7 +18,7 @@ from .base_dataset import BaseDataset
 
 class DetectionConversionBase(BaseDataset, metaclass=ABCMeta):
 
-    def __init__(self, *args, bbox_size_threshold=50, class_unifier=None,
+    def __init__(self, *args, bbox_size_threshold=0, class_unifier=None,
                  **kwargs):
         if class_unifier:
             with open(class_unifier, 'r') as doc:

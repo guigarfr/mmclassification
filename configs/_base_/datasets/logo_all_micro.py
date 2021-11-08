@@ -27,70 +27,46 @@ all_classes = data_root + 'all_classes_v4.txt'
 class_unifier = data_root + 'class_unification_dict_v4.json'
 ob_root = data_root + 'OpenBrands/'
 train_openbrand = dict(
-        type='ConcatDataset',
-        datasets=[
-            dict(
-                type='OpenBrandDataset',
-                classes=all_classes,
-                ann_file=ob_root + 'annotations/train_20210409_14_reduced.json',
-                data_prefix=ob_root + '电商标识检测大赛_train_20210409_14/',
-                pipeline=train_pipeline,
-                class_unifier=class_unifier,
-            ),
-            dict(
-                type='OpenBrandDataset',
-                classes=all_classes,
-                ann_file=ob_root + 'annotations/train_20210409_15_reduced.json',
-                data_prefix=ob_root + '电商标识检测大赛_train_20210409_15/',
-                pipeline=train_pipeline,
-                class_unifier=class_unifier,
-            ),
-        ],
-    )
+    type='ConcatDatasetBuilder',
+    dataset_type='OpenBrandDataset',
+    classes=all_classes,
+    pipeline=train_pipeline,
+    ann_files=['train_20210409_14_reduced.json',
+               'train_20210409_15_reduced.json'],
+    data_folders=['电商标识检测大赛_train_20210409_14/',
+                  '电商标识检测大赛_train_20210409_15/'],
+    ann_prefix=ob_root+'annotations/',
+    data_prefix=ob_root,
+    class_unifier=class_unifier,
+)
 
-validation_openbrand=dict(
-        type='ConcatDataset',
-        datasets=[
-            dict(
-                type='OpenBrandDataset',
-                classes=all_classes,
-                ann_file=ob_root + 'annotations/validation_20210409_14_reduced.json',
-                data_prefix=ob_root + '电商标识检测大赛_train_20210409_14/',
-                pipeline=test_pipeline,
-                class_unifier=class_unifier,
-            ),
-            dict(
-                type='OpenBrandDataset',
-                classes=all_classes,
-                ann_file=ob_root + 'annotations/validation_20210409_15_reduced.json',
-                data_prefix=ob_root + '电商标识检测大赛_train_20210409_15/',
-                pipeline=test_pipeline,
-                class_unifier=class_unifier,
-            ),
-        ],
-    )
+validation_openbrand = dict(
+    type='ConcatDatasetBuilder',
+    dataset_type='OpenBrandDataset',
+    classes=all_classes,
+    pipeline=test_pipeline,
+    ann_files=['validation_20210409_14_reduced.json',
+               'validation_20210409_15_reduced.json'],
+    data_folders=['电商标识检测大赛_train_20210409_14/',
+                  '电商标识检测大赛_train_20210409_15/'],
+    ann_prefix=ob_root+'annotations/',
+    data_prefix=ob_root,
+    class_unifier=class_unifier,
+)
 
 test_openbrand = dict(
-        type='ConcatDataset',
-        datasets=[
-            dict(
-                type='OpenBrandDataset',
-                classes=all_classes,
-                ann_file=ob_root + 'annotations/test_20210409_14_reduced.json',
-                data_prefix=ob_root + '电商标识检测大赛_train_20210409_14/',
-                pipeline=test_pipeline,
-                class_unifier=class_unifier,
-            ),
-            dict(
-                type='OpenBrandDataset',
-                classes=all_classes,
-                ann_file=ob_root + 'annotations/test_20210409_15_reduced.json',
-                data_prefix=ob_root + '电商标识检测大赛_train_20210409_15/',
-                pipeline=test_pipeline,
-                class_unifier=class_unifier,
-            ),
-        ],
-    )
+    type='ConcatDatasetBuilder',
+    dataset_type='OpenBrandDataset',
+    classes=all_classes,
+    pipeline=test_pipeline,
+    ann_files=['test_20210409_14_reduced.json',
+               'test_20210409_15_reduced.json'],
+    data_folders=['电商标识检测大赛_train_20210409_14/',
+                  '电商标识检测大赛_train_20210409_15/'],
+    ann_prefix=ob_root+'annotations/',
+    data_prefix=ob_root,
+    class_unifier=class_unifier,
+)
 
 ld_root = data_root + 'LogoDet-3K/'
 rp_root = data_root + 'logo_dataset/'

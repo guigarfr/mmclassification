@@ -3,6 +3,7 @@ import platform
 import random
 from distutils.version import LooseVersion
 from functools import partial
+import os
 
 import numpy as np
 import torch
@@ -25,11 +26,53 @@ DATASETS = Registry('dataset')
 PIPELINES = Registry('pipeline')
 
 
+def build_concat_dataset(dataset_type, ann_files, data_folders, ann_prefix,
+                         data_prefix, default_args, **kwargs):
+    """A builder for concat datasets.
+
+    Done mainly to prevent repeating stuff while building OpenBrands.
+
+    Args:
+        dataset_type (str): Type of the datasets.
+        ann_files (list[str]): List of annotation files path to load. Each one
+            will become a dataset.
+        data_folders (list[str]): List of path of where the images are. Same
+            length as ann_files.
+        ann_prefix (str): Prefix to add to all ann_files.
+        data_prefix (str): Prefix to add to all data_folders.
+        default_args (dict): Other arguments.
+    """
+    from .dataset_wrappers import ConcatDataset
+
+    return ConcatDataset(
+        [build_dataset(
+            {
+                'type': dataset_type,
+                'ann_file': os.path.join(ann_prefix, ann_file),
+                'data_prefix': os.path.join(data_prefix, data_folder),
+                **kwargs
+            },
+            default_args
+        ) for ann_file, data_folder in zip(ann_files, data_folders)]
+    )
+
+
 def build_dataset(cfg, default_args=None):
     from .dataset_wrappers import (ConcatDataset, RepeatDataset,
                                    ClassBalancedDataset)
     if isinstance(cfg, (list, tuple)):
         dataset = ConcatDataset([build_dataset(c, default_args) for c in cfg])
+    elif cfg['type'] == 'ConcatDatasetBuilder':
+        del cfg['type']
+        dataset_type = cfg.pop('dataset_type')
+        ann_files = cfg.pop('ann_files')
+        data_folders = cfg.pop('data_folders')
+        ann_prefix = cfg.pop('ann_prefix', '')
+        data_prefix = cfg.pop('data_prefix', '')
+        dataset = build_concat_dataset(
+            dataset_type, ann_files, data_folders, ann_prefix, data_prefix,
+            default_args, **cfg
+        )
     elif cfg['type'] == 'ConcatDataset':
         dataset = ConcatDataset(
             [build_dataset(c, default_args) for c in cfg['datasets']])
