@@ -1,5 +1,79 @@
 # Changelog
 
+## v0.17.0(29/10/2021)
+
+### Highlights
+
+- Support Tokens-to-Token ViT backbone and Res2Net backbone. Welcome to use!
+- Support ImageNet21k dataset.
+- Add a pipeline visualization tool. Try it with the [tutorials](https://mmclassification.readthedocs.io/en/latest/tools/visualization.html#pipeline-visualization)!
+
+### New Features
+
+- Add Tokens-to-Token ViT backbone and converted checkpoints. ([#467](https://github.com/open-mmlab/mmclassification/pull/467))
+- Add Res2Net backbone and converted weights. ([#465](https://github.com/open-mmlab/mmclassification/pull/465))
+- Support ImageNet21k dataset. ([#461](https://github.com/open-mmlab/mmclassification/pull/461))
+- Support seesaw loss. ([#500](https://github.com/open-mmlab/mmclassification/pull/500))
+- Add a pipeline visualization tool. ([#406](https://github.com/open-mmlab/mmclassification/pull/406))
+- Add a tool to find broken files. ([#482](https://github.com/open-mmlab/mmclassification/pull/482))
+- Add a tool to test TorchServe. ([#468](https://github.com/open-mmlab/mmclassification/pull/468))
+
+### Improvements
+
+- Refator Vision Transformer. ([#395](https://github.com/open-mmlab/mmclassification/pull/395))
+- Use context manager to reuse matplotlib figures. ([#432](https://github.com/open-mmlab/mmclassification/pull/432))
+
+### Bug Fixes
+
+- Remove `DistSamplerSeedHook` if use `IterBasedRunner`. ([#501](https://github.com/open-mmlab/mmclassification/pull/501))
+- Set the priority of `EvalHook` to "LOW" to avoid a bug when using `IterBasedRunner`. ([#488](https://github.com/open-mmlab/mmclassification/pull/488))
+- Fix a wrong parameter of `get_root_logger` in `apis/train.py`. ([#486](https://github.com/open-mmlab/mmclassification/pull/486))
+- Fix version check in dataset builder. ([#474](https://github.com/open-mmlab/mmclassification/pull/474))
+
+### Docs Update
+
+- Add English Colab tutorials and update Chinese Colab tutorials. ([#483](https://github.com/open-mmlab/mmclassification/pull/483), [#497](https://github.com/open-mmlab/mmclassification/pull/497))
+- Add tutuorial for config files. ([#487](https://github.com/open-mmlab/mmclassification/pull/487))
+- Add model-pages in Model Zoo. ([#480](https://github.com/open-mmlab/mmclassification/pull/480))
+- Add code-spell pre-commit hook and fix a large mount of typos. ([#470](https://github.com/open-mmlab/mmclassification/pull/470))
+
+## v0.16.0(30/9/2021)
+
+### Highlights
+
+- We have improved compatibility with downstream repositories like MMDetection and MMSegmentation. We will add some examples about how to use our backbones in MMDetection.
+- Add RepVGG backbone and checkpoints. Welcome to use it!
+- Add timm backbones wrapper, now you can simply use backbones of pytorch-image-models in MMClassification!
+
+### New Features
+
+- Add RepVGG backbone and checkpoints. ([#414](https://github.com/open-mmlab/mmclassification/pull/414))
+- Add timm backbones wrapper. ([#427](https://github.com/open-mmlab/mmclassification/pull/427))
+
+### Improvements
+
+- Fix TnT compatibility and verbose warning. ([#436](https://github.com/open-mmlab/mmclassification/pull/436))
+- Support setting `--out-items` in `tools/test.py`.  ([#437](https://github.com/open-mmlab/mmclassification/pull/437))
+- Add datetime info and saving model using torch<1.6 format. ([#439](https://github.com/open-mmlab/mmclassification/pull/439))
+- Improve downstream repositories compatibility. ([#421](https://github.com/open-mmlab/mmclassification/pull/421))
+- Rename the option `--options` to `--cfg-options` in some tools. ([#425](https://github.com/open-mmlab/mmclassification/pull/425))
+- Add PyTorch 1.9 and Python 3.9 build workflow, and remove some CI. ([#422](https://github.com/open-mmlab/mmclassification/pull/422))
+
+### Bug Fixes
+
+- Fix format error in `test.py` when metric returns `np.ndarray`. ([#441](https://github.com/open-mmlab/mmclassification/pull/441))
+- Fix `publish_model` bug if no parent of `out_file`. ([#463](https://github.com/open-mmlab/mmclassification/pull/463))
+- Fix num_classes bug in pytorch2onnx.py. ([#458](https://github.com/open-mmlab/mmclassification/pull/458))
+- Fix missing runtime requirement `packaging`. ([#459](https://github.com/open-mmlab/mmclassification/pull/459))
+- Fix saving simplified model bug in ONNX export tool. ([#438](https://github.com/open-mmlab/mmclassification/pull/438))
+
+### Docs Update
+
+- Update `getting_started.md` and `install.md`. And rewrite `finetune.md`. ([#466](https://github.com/open-mmlab/mmclassification/pull/466))
+- Use PyTorch style docs theme. ([#457](https://github.com/open-mmlab/mmclassification/pull/457))
+- Update metafile and Readme. ([#435](https://github.com/open-mmlab/mmclassification/pull/435))
+- Add `CITATION.cff`. ([#428](https://github.com/open-mmlab/mmclassification/pull/428))
+
 ## v0.15.0(31/8/2021)
 
 ### Highlights
@@ -11,7 +85,7 @@
 
 - Add `hparams` argument in `AutoAugment` and `RandAugment` and some other improvement. ([#398](https://github.com/open-mmlab/mmclassification/pull/398))
 - Support classwise weight in losses. ([#388](https://github.com/open-mmlab/mmclassification/pull/388))
-- Enhence `SELayer` to support custom squeeze channels. ([#417](https://github.com/open-mmlab/mmclassification/pull/417))
+- Enhance `SELayer` to support custom squeeze channels. ([#417](https://github.com/open-mmlab/mmclassification/pull/417))
 
 ### Code Refactor
 
@@ -81,7 +155,7 @@
 - Improve test tools and add some new tools. (#322)
 - Correct MobilenetV3 backbone structure and add pretained models. (#291)
 - Refactor `PatchEmbed` and `HybridEmbed` as independent components. (#330)
-- Refactor mixup and cutmix as `Augments` to support more funtions. (#278)
+- Refactor mixup and cutmix as `Augments` to support more functions. (#278)
 - Refactor weights initialization method. (#270, #318, #319)
 - Refactor `LabelSmoothLoss` to support multiple calculation formulas. (#285)
 
