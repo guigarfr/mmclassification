@@ -250,6 +250,28 @@ def baseline_iter(file_p):
         yield pickle.load(file_p)
 
 
+def set_index_params(index, params):
+    for key, value in params.items():
+        item = index
+        while (idx1 := hasattr(item, 'index')) or hasattr(item, 'base_index'):
+            if idx1:
+                item = faiss.downcast_index(item.index)
+            else:
+                item = faiss.downcast_index(item.base_index)
+
+        parts = key.split('.')
+        itemkey = parts[-1]
+        for subkey in parts[:-1]:
+            if not hasattr(item, subkey):
+                logging.warning("What? %s %s %s", key, parts, subkey)
+            item = getattr(item, subkey)
+        if not hasattr(item, itemkey):
+            logging.warning("What? %s %s %s", key, parts, itemkey)
+        logging.debug("Default value for %s is %s", key, getattr(item, itemkey))
+        logging.debug("Setting param %s to %s", itemkey, value)
+        setattr(item, itemkey, value)
+
+
 def main():
     args = parse_args()
 
@@ -302,7 +324,7 @@ def main():
 
     if args.out is not None:
         args.out.write(
-            'Index\tMetric\t'
+            'Index\tMetric\tNprobe\t'
             'Sec-Train\tSec-Index\tSec-Search\t'
             'Bytes-faiss\tBytes-idx-ram\tBytes-idx-disk\t'
             '{}\t{}\n'.format(
@@ -323,30 +345,75 @@ def main():
     lsh_index_4 = faiss.IndexIDMap(faiss.IndexLSH(out_feats, out_feats*4))
     lsh_index_2 = faiss.IndexIDMap(faiss.IndexLSH(out_feats, out_feats*2))
 
-    for faiss_name, faiss_index, faiss_metric in (
-        ("IDMap_Flat_L2", "IDMap,Flat", faiss.METRIC_L2),
-        ("IDMap_Flat_IP", "IDMap,Flat", faiss.METRIC_INNER_PRODUCT),
-        ("IDMap,IndexLSH{}".format(out_feats*16), lsh_index_8, None),
-        ("IDMap,IndexLSH{}".format(out_feats*8), lsh_index_8, None),
-        ("IDMap,IndexLSH{}".format(out_feats*4), lsh_index_4, None),
-        ("IDMap,IndexLSH{}".format(out_feats*2), lsh_index_2, None),
-        # # ("IDMap,Flat", faiss.METRIC_INNER_PRODUCT),
-        # ("IDMap,HNSW64,Flat", faiss.METRIC_L2),
-        # ("IDMap,HNSW128,Flat", faiss.METRIC_L2),
-        # # ("IDMap,HNSW64,Flat", faiss.METRIC_INNER_PRODUCT),
-        # # ("IDMap,HNSW128,Flat", faiss.METRIC_INNER_PRODUCT),
-        # ("IDMap,IVF20,Flat", faiss.METRIC_L2),
-        # ("IDMap,IVF55,Flat", faiss.METRIC_L2),
-        # # ("IDMap,IVF20,Flat", faiss.METRIC_INNER_PRODUCT),
-        # # ("IDMap,IVF55,Flat", faiss.METRIC_INNER_PRODUCT),
-        # ("IDMap,IVF500_HNSW32,Flat", faiss.METRIC_L2),
-        # ("IDMap,PQ16", faiss.METRIC_L2),
-        # ("IDMap,PQ8x8", faiss.METRIC_L2),
-        # ("IDMap,PCA32,IVF20_PQ8x8,Flat", faiss.METRIC_L2),
-        # ("IDMap,IVF55,SQ4", faiss.METRIC_L2),
-        # ("IDMap,IVF55,SQ8", faiss.METRIC_L2),
-        # ("IDMap,IVF55,PQ8+8", faiss.METRIC_L2),
-        # ("IDMap,PCA32,IVF55,PQ8+8", faiss.METRIC_L2),
+    NPROBES = [1, 3, 6, 12, 24]
+
+    for faiss_name, faiss_index, params, faiss_metric in (
+        # ("Flat_L2", "IDMap,Flat", dict(), faiss.METRIC_L2),
+        # ("IndexLSH{}".format(out_feats*16), dict(), lsh_index_8, None),
+        # ("IndexLSH{}".format(out_feats*8), dict(), lsh_index_8, None),
+        # ("IndexLSH{}".format(out_feats*4), dict(), lsh_index_4, None),
+        # ("IndexLSH{}".format(out_feats*2), dict(), lsh_index_2, None),
+        # ("HNSW16EFC30EFS1,Flat", "IDMap,HNSW16,Flat", {'hnsw.efConstruction': 30}, faiss.METRIC_L2),
+        # ("HNSW32EFC30EFS1,Flat", "IDMap,HNSW32,Flat", {'hnsw.efConstruction': 30}, faiss.METRIC_L2),
+        # ("HNSW64EFC30EFS1,Flat", "IDMap,HNSW64,Flat", {'hnsw.efConstruction': 30}, faiss.METRIC_L2),
+        # ("HNSW128EFC30EFS1,Flat", "IDMap,HNSW128,Flat", {'hnsw.efConstruction': 30}, faiss.METRIC_L2),
+        # ("HNSW16EFC40EFS1,Flat", "IDMap,HNSW16,Flat", dict(), faiss.METRIC_L2),
+        # ("HNSW32EFC40EFS1,Flat", "IDMap,HNSW32,Flat", dict(), faiss.METRIC_L2),
+        # ("HNSW64EFC40EFS1,Flat", "IDMap,HNSW64,Flat", dict(), faiss.METRIC_L2),
+        # ("HNSW128EFC40EFS1,Flat", "IDMap,HNSW128,Flat", dict(), faiss.METRIC_L2),
+        # ("HNSW16EFC50EFS1,Flat", "IDMap,HNSW16,Flat", {'hnsw.efConstruction': 50}, faiss.METRIC_L2),
+        # ("HNSW32EFC50EFS1,Flat", "IDMap,HNSW32,Flat", {'hnsw.efConstruction': 50}, faiss.METRIC_L2),
+        # ("HNSW64EFC50EFS1,Flat", "IDMap,HNSW64,Flat", {'hnsw.efConstruction': 50}, faiss.METRIC_L2),
+        # ("HNSW128EFC50EFS1,Flat", "IDMap,HNSW128,Flat", {'hnsw.efConstruction': 50}, faiss.METRIC_L2),
+        # ("HNSW16EFC40EFS2,Flat", "IDMap,HNSW16,Flat", {'hnsw.efSearch': 2}, faiss.METRIC_L2),
+        # ("HNSW32EFC40EFS2,Flat", "IDMap,HNSW32,Flat", {'hnsw.efSearch': 2}, faiss.METRIC_L2),
+        # ("HNSW64EFC40EFS2,Flat", "IDMap,HNSW64,Flat", {'hnsw.efSearch': 2}, faiss.METRIC_L2),
+        # ("HNSW128EFC40EFS2,Flat", "IDMap,HNSW128,Flat", {'hnsw.efSearch': 2}, faiss.METRIC_L2),
+        # ("HNSW16EFC40EFS4,Flat", "IDMap,HNSW16,Flat", {'hnsw.efSearch': 4}, faiss.METRIC_L2),
+        # ("HNSW32EFC40EFS4,Flat", "IDMap,HNSW32,Flat", {'hnsw.efSearch': 4}, faiss.METRIC_L2),
+        # ("HNSW64EFC40EFS4,Flat", "IDMap,HNSW64,Flat", {'hnsw.efSearch': 4}, faiss.METRIC_L2),
+        # ("HNSW128EFC40EFS4,Flat", "IDMap,HNSW128,Flat", {'hnsw.efSearch': 4}, faiss.METRIC_L2),
+        # ("IVF25P1,Flat", "IDMap,IVF25,Flat", dict(), faiss.METRIC_L2),
+        # ("IVF50P1,Flat", "IDMap,IVF50,Flat", dict(), faiss.METRIC_L2),
+        # ("IVF100P1,Flat", "IDMap,IVF100,Flat", dict(), faiss.METRIC_L2),
+        # ("IVF200P1,Flat", "IDMap,IVF200,Flat", dict(), faiss.METRIC_L2),
+        # ("IVF500P1,Flat", "IDMap,IVF500,Flat", dict(), faiss.METRIC_L2),
+        # ("IVF25P3,Flat", "IDMap,IVF25,Flat", {'nprobe': 3}, faiss.METRIC_L2),
+        # ("IVF50P3,Flat", "IDMap,IVF50,Flat", {'nprobe': 3}, faiss.METRIC_L2),
+        # ("IVF100P3,Flat", "IDMap,IVF100,Flat", {'nprobe': 3}, faiss.METRIC_L2),
+        # ("IVF200P3,Flat", "IDMap,IVF200,Flat", {'nprobe': 3}, faiss.METRIC_L2),
+        # # ("IVF500P3,Flat", "IVF500,Flat", {'ivf.nprobe': 3}, faiss.METRIC_L2),
+        # ("IVF25P6,Flat", "IDMap,IVF25,Flat", {'nprobe': 6}, faiss.METRIC_L2),
+        # ("IVF50P6,Flat", "IDMap,IVF50,Flat", {'nprobe': 6}, faiss.METRIC_L2),
+        # ("IVF100P6,Flat", "IDMap,IVF100,Flat", {'nprobe': 6}, faiss.METRIC_L2),
+        # ("IVF200P6,Flat", "IDMap,IVF200,Flat", {'nprobe': 6}, faiss.METRIC_L2),
+        # ("IVF100P12,Flat", "IDMap,IVF100,Flat", {'nprobe': 12}, faiss.METRIC_L2),
+        # ("PCA400,IVF100P24,Flat", "IDMap,PCA400,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
+        # ("PCA300,IVF100P24,Flat", "IDMap,PCA300,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
+        # ("PQ8x3", "IDMap,PQ8x3", dict(), faiss.METRIC_L2),
+        ("OPQ64,IVF100,PQ64", "IDMap,OPQ64,IVF100P24,PQ64", dict(), faiss.METRIC_L2),
+        # ("OPQ64,IVF100P6,PQ64", "IDMap,OPQ64,IVF100P24,PQ64", {'nprobe': 6}, faiss.METRIC_L2),
+        # ("OPQ8x3,IVF100P12,PQ8x3", "IDMap,OPQ8x3,IVF100,PQ8x3", {'nprobe': 12}, faiss.METRIC_L2),
+        # ("OPQ8x3,IVF100P6,PQ8x3", "IDMap,OPQ8x3,IVF100,PQ8x3", {'nprobe': 6}, faiss.METRIC_L2),
+        # ("PCA256,IVF100P24,Flat", "IDMap,PCA256,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
+        # ("IVF100P24,Flat", "IDMap,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
+        # ("IVF64P3,Flat", "IDMap,IVF64,Flat", {'nprobe': 3}, faiss.METRIC_L2),
+        # ("IVF64P6,Flat", "IDMap,IVF64,Flat", {'nprobe': 6}, faiss.METRIC_L2),
+        # ("IVF64P12,Flat", "IDMap,IVF64,Flat", {'nprobe': 12}, faiss.METRIC_L2),
+        ("IVF64,Flat", "IDMap,IVF64,Flat", dict(), faiss.METRIC_L2),
+
+            # ("IVF500P3,Flat", "IVF500,Flat", {'ivf.nprobe': 3}, faiss.METRIC_L2),
+
+            # # ("IVF20,Flat", faiss.METRIC_INNER_PRODUCT),
+        # # ("IVF55,Flat", faiss.METRIC_INNER_PRODUCT),
+        # ("IVF500_HNSW32,Flat", faiss.METRIC_L2),
+        # ("PQ16", faiss.METRIC_L2),
+        # ("PQ8x8", faiss.METRIC_L2),
+        # ("PCA32,IVF20_PQ8x8,Flat", faiss.METRIC_L2),
+        # ("IVF55,SQ4", faiss.METRIC_L2),
+        # ("IVF55,SQ8", faiss.METRIC_L2),
+        # ("IVF55,PQ8+8", faiss.METRIC_L2),
+        # ("PCA32,IVF55,PQ8+8", faiss.METRIC_L2),
     ):
 
         del index
@@ -367,6 +434,8 @@ def main():
         else:
             index = faiss_index
             logging.info("Using index %s", faiss_name)
+
+        set_index_params(index, params)
 
         logging.info("Extracting features for train batch #1...")
         feat_iter = feature_iterator(
@@ -412,113 +481,127 @@ def main():
             mode="w+b",
         ) if args.save_results else None
 
-        logging.info("Extracting test features...")
-        t_search = 0
-        top_hits = collections.defaultdict(int)
-        search_hits = collections.defaultdict(list)
-        n_logos = 0
-        for i, (feats, labels) in enumerate(
-                feature_iterator(
-                    model,
-                    dataset_test,
-                    batch_size=args.batch_predict or 100),
-                start=1):
-            logging.info(
-                "Search batch #%s (%s feats of length %s)",
-                i, len(feats), len(feats[0]))
+        for probe in NPROBES:
 
-            t0 = time.time()
-            ds, ids = index.search(feats, args.k)
-            t_search += (time.time() - t0)
+            try:
+                set_index_params(index, {'nprobe': probe})
+                b_probe = True
+            except Exception:
+                logging.warning(
+                    "Could not change nprobe for index %s", faiss_name)
+                b_probe = False
+                probe = None
+
+            logging.info("Extracting test features...")
+            t_search = 0
+            top_hits = collections.defaultdict(int)
+            search_hits = collections.defaultdict(list)
+            n_logos = 0
+            for i, (feats, labels) in enumerate(
+                    feature_iterator(
+                        model,
+                        dataset_test,
+                        batch_size=args.batch_predict or 100),
+                    start=1):
+                logging.info(
+                    "Search batch #%s (%s feats of length %s)",
+                    i, len(feats), len(feats[0]))
+
+                t0 = time.time()
+                ds, ids = index.search(feats, args.k)
+                t_search += (time.time() - t0)
+
+                if f_result is not None:
+                    for distances, indexes in zip(ds, ids):
+                        pickle.dump((distances, indexes), f_result)
+
+                for true_label, distances, indexes in zip(labels, ds, ids):
+                    top_candidates = indexes[:args.k]
+
+                    if not len(top_candidates):
+                        logging.warning("Image with no candidates")
+
+                    for ith, candidate in enumerate(top_candidates, start=1):
+                        if true_label == candidate:
+                            for k in range(ith, args.k + 1):
+                                top_hits[k] += 1
+                            break
+
+                    if bs_iter:
+                        baseline_dss, baseline_ids = next(bs_iter)
+                        for k in range(args.k):
+                            search_hits[k].append(
+                                np.in1d(baseline_ids[:k+1], indexes[:k+1])
+                            )
+
+                    n_logos += 1
 
             if f_result is not None:
-                for distances, indexes in zip(ds, ids):
-                    pickle.dump((distances, indexes), f_result)
+                f_result.close()
 
-            for true_label, distances, indexes in zip(labels, ds, ids):
-                top_candidates = indexes[:args.k]
+            dt_train = datetime.timedelta(seconds=t_train)
+            dt_index = datetime.timedelta(seconds=t_index)
+            dt_search = datetime.timedelta(seconds=t_search)
+            mem_faiss_proc = faiss.get_mem_usage_kb() * 1024
+            mem_faiss_idx_ram = mem_faiss_proc - base_faiss_mem
+            mem_faiss_idx_disk = get_memory(index)
 
-                if not len(top_candidates):
-                    logging.warning("Image with no candidates")
+            logging.info(
+                "Faiss Process Memory: %s", humanize.naturalsize(mem_faiss_proc))
+            logging.info(
+                "Index RAM Memory: %s", humanize.naturalsize(mem_faiss_idx_ram))
+            logging.info(
+                "Index Disk Memory: %s", humanize.naturalsize(mem_faiss_idx_disk))
 
-                for ith, candidate in enumerate(top_candidates, start=1):
-                    if true_label == candidate:
-                        for k in range(ith, args.k + 1):
-                            top_hits[k] += 1
-                        break
+            # Accuracies
+            accuracies_label = collections.defaultdict(float)
+            for k, val in top_hits.items():
+                acc = val / n_logos
+                logging.info("Top-%s Accuracy: %.4f", k, acc)
+                accuracies_label[k] = acc
 
-                if bs_iter:
-                    baseline_dss, baseline_ids = next(bs_iter)
-                    for k in range(args.k):
-                        search_hits[k].append(
-                            np.in1d(baseline_ids[:k+1], indexes[:k+1])
+            # Search accuracies
+            if args.baseline:
+                search_accuracies = collections.defaultdict(float)
+                for k, s_hits_list in search_hits.items():
+                    s_hits = np.vstack(s_hits_list)
+                    sum_hits = np.sum(s_hits, axis=1)
+                    s_acc = np.average(sum_hits / (k + 1))
+                    search_accuracies[k] = s_acc
+                    logging.info("Top-%s Search Accuracy: %.4f", k + 1, s_acc)
+            else:
+                search_accuracies = None
+
+            logging.info("Train time %s", str(dt_train))
+            logging.info("Index time %s", str(dt_index))
+            logging.info("Search time %s", str(dt_search))
+
+            if args.out is not None:
+                args.out.write(
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                        faiss_name, faiss_metric or 'default', probe,
+                        t_train, t_index, t_search,
+                        mem_faiss_proc, mem_faiss_idx_ram, mem_faiss_idx_disk,
+                        '\t'.join(
+                            [
+                                '{:.4f}'.format(accuracies_label[k+1])
+                                for k in range(args.k)
+                            ]
+                        ),
+                        '\t'.join(
+                            [
+                                '{:.4f}'.format(search_accuracies[k])
+                                if search_accuracies is not None
+                                else '-'
+                                for k in range(args.k)
+                            ]
                         )
-
-                n_logos += 1
-
-        if f_result is not None:
-            f_result.close()
-
-        dt_train = datetime.timedelta(seconds=t_train)
-        dt_index = datetime.timedelta(seconds=t_index)
-        dt_search = datetime.timedelta(seconds=t_search)
-        mem_faiss_proc = faiss.get_mem_usage_kb() * 1024
-        mem_faiss_idx_ram = mem_faiss_proc - base_faiss_mem
-        mem_faiss_idx_disk = get_memory(index)
-
-        logging.info(
-            "Faiss Process Memory: %s", humanize.naturalsize(mem_faiss_proc))
-        logging.info(
-            "Index RAM Memory: %s", humanize.naturalsize(mem_faiss_idx_ram))
-        logging.info(
-            "Index Disk Memory: %s", humanize.naturalsize(mem_faiss_idx_disk))
-
-        # Accuracies
-        accuracies_label = collections.defaultdict(float)
-        for k, val in top_hits.items():
-            acc = val / n_logos
-            logging.info("Top-%s Accuracy: %.4f", k, acc)
-            accuracies_label[k] = acc
-
-        # Search accuracies
-        if args.baseline:
-            search_accuracies = collections.defaultdict(float)
-            for k, s_hits_list in search_hits.items():
-                s_hits = np.vstack(s_hits_list)
-                sum_hits = np.sum(s_hits, axis=1)
-                s_acc = np.average(sum_hits / (k + 1))
-                search_accuracies[k] = s_acc
-                logging.info("Top-%s Search Accuracy: %.4f", k + 1, s_acc)
-        else:
-            search_accuracies = None
-
-        logging.info("Train time %s", str(dt_train))
-        logging.info("Index time %s", str(dt_index))
-        logging.info("Search time %s", str(dt_search))
-
-        if args.out is not None:
-            args.out.write(
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                    faiss_name, faiss_metric or 'default',
-                    t_train, t_index, t_search,
-                    mem_faiss_proc, mem_faiss_idx_ram, mem_faiss_idx_disk,
-                    '\t'.join(
-                        [
-                            '{:.4f}'.format(accuracies_label[k+1])
-                            for k in range(args.k)
-                        ]
-                    ),
-                    '\t'.join(
-                        [
-                            '{:.4f}'.format(search_accuracies[k])
-                            if search_accuracies is not None
-                            else '-'
-                            for k in range(args.k)
-                        ]
                     )
                 )
-            )
-            args.out.flush()
+                args.out.flush()
+
+            if not b_probe:
+                break
 
     if args.baseline:
         args.baseline.close()
