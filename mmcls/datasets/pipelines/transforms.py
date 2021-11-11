@@ -690,6 +690,7 @@ class Resize(object):
                  size,
                  interpolation='bilinear',
                  adaptive_side='short',
+                 only_resize_bigger=True,
                  backend='cv2'):
         assert isinstance(size, int) or (isinstance(size, tuple)
                                          and len(size) == 2)
@@ -697,6 +698,7 @@ class Resize(object):
 
         self.adaptive_side = adaptive_side
         self.adaptive_resize = False
+        self.only_resize_bigger = only_resize_bigger
         if isinstance(size, int):
             assert size > 0
             size = (size, size)
@@ -718,8 +720,8 @@ class Resize(object):
         for key in results.get('img_fields', ['img']):
             img = results[key]
             ignore_resize = False
+            h, w = img.shape[:2]
             if self.adaptive_resize:
-                h, w = img.shape[:2]
                 target_size = self.size[0]
 
                 condition_ignore_resize = {
@@ -730,7 +732,7 @@ class Resize(object):
                 }
 
                 if condition_ignore_resize[self.adaptive_side]:
-                    ignore_resize = True
+                    continue
                 elif any([
                         self.adaptive_side == 'short' and w < h,
                         self.adaptive_side == 'long' and w > h,
@@ -743,6 +745,10 @@ class Resize(object):
                     width = int(target_size * w / h)
             else:
                 height, width = self.size
+
+            if self.only_resize_bigger and all((h <= height, w <= width)):
+                continue
+
             if not ignore_resize:
                 img = mmcv.imresize(
                     img,

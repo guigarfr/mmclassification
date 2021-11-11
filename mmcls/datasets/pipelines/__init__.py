@@ -9,7 +9,8 @@ from .formatting import (Collect, ImageToTensor, ToNumpy, ToPIL, ToTensor,
 from .loading import (LoadImageFromFile, LoadAnnotations)
 from .transforms import (CenterCrop, ColorJitter, Lighting, Normalize, Pad,
                          RandomCrop, RandomErasing, RandomFlip,
-                         RandomGrayscale, RandomResizedCrop, Resize, SwapChannels, CropBoundingBox)
+                         RandomGrayscale, RandomResizedCrop, Resize,
+                         SwapChannels, CropBoundingBox)
 
 __all__ = [
     'Compose', 'to_tensor', 'ToTensor', 'ImageToTensor', 'ToPIL', 'ToNumpy',
