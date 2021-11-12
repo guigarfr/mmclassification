@@ -53,7 +53,7 @@ class ProxyLinearClsHead(ClsHead):
             x = x[-1]
 
         x = F.normalize(self.refactor(x), dim=-1)
-        cls_score = x.matmul(F.normalize(self.fc, dim=-1).t())
+        cls_score = x.matmul(F.normalize(self.fc, dim=-1))
 
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
