@@ -78,7 +78,7 @@ class AngularPenaltyHead(LinearClsHead):
             )
         return numerator
 
-    def loss(self, cls_score, gt_label):
+    def loss(self, cls_score, gt_label, **kwargs):
         logits = self._additive_angular_margin_penalty(cls_score, gt_label)
 
         excl = torch.cat(
@@ -105,7 +105,7 @@ class AngularPenaltyHead(LinearClsHead):
         losses['loss'] = -torch.mean(L)
         return losses
 
-    def forward_train(self, x, gt_label):
+    def forward_train(self, x, gt_label, **kwargs):
         '''
         input shape (N, in_features)
         '''
