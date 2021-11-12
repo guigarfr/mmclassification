@@ -43,7 +43,7 @@ class ProxyLinearClsHead(ClsHead):
 
         self.refactor = nn.Linear(self.in_channels, self.out_features)
 
-        self.fc = nn.Parameter(torch.Tensor(self.in_channels, self.num_classes))
+        self.fc = nn.Parameter(torch.Tensor(self.out_features, self.num_classes))
         nn.init.kaiming_uniform_(self.fc, a=math.sqrt(5))
         self.scale = temperature_scale
 
@@ -65,7 +65,7 @@ class ProxyLinearClsHead(ClsHead):
         if isinstance(x, tuple):
             x = x[-1]
         x = F.normalize(self.refactor(x), dim=-1)
-        cls_score = x.matmul(F.normalize(self.fc, dim=-1).t()) * self.scale
+        cls_score = x.matmul(F.normalize(self.fc, dim=-1)) * self.scale
 
         losses = self.loss(cls_score, gt_label, **kwargs)
         return losses
