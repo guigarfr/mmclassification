@@ -147,7 +147,7 @@ if __name__ == '__main__':
     add_mim_extension()
     setup(
         name='mmcls',
-        version=get_version(),
+        version='0.17.0',
         description='OpenMMLab Image Classification Toolbox and Benchmark',
         long_description=readme(),
         long_description_content_type='text/markdown',
