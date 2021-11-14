@@ -41,10 +41,18 @@ class ProxyLinearClsHead(ClsHead):
             raise ValueError(
                 f'num_classes={num_classes} must be a positive integer')
 
-        self.refactor = nn.Linear(self.in_channels, self.out_features)
+        self.refactor = nn.Linear(
+            self.in_channels, self.out_features, bias=False)
 
-        self.fc = nn.Parameter(torch.Tensor(self.out_features, self.num_classes))
-        nn.init.kaiming_uniform_(self.fc, a=math.sqrt(5))
+        self.standardize = nn.LayerNorm(
+            self.in_channels, elementwise_affine=False)
+
+        self.fc = nn.Parameter(torch.Tensor(
+            self.num_classes, self.out_features))
+
+        stdv = 1. / math.sqrt(self.fc.size(1))
+        self.fc.data.uniform_(-stdv, stdv)
+
         self.scale = temperature_scale
 
     def simple_test(self, x):
@@ -52,11 +60,11 @@ class ProxyLinearClsHead(ClsHead):
         if isinstance(x, tuple):
             x = x[-1]
 
-        x = F.normalize(self.refactor(x), dim=-1)
-        cls_score = x.matmul(F.normalize(self.fc, dim=-1))
+        x = x.view(x.size(0), -1)
+        x = self.standardize(x)
+        x = self.refactor(x)
+        cls_score = F.normalize(x)
 
-        if isinstance(cls_score, list):
-            cls_score = sum(cls_score) / float(len(cls_score))
         pred = F.softmax(cls_score, dim=1) if cls_score is not None else None
 
         return self.post_process(pred)
@@ -64,8 +72,11 @@ class ProxyLinearClsHead(ClsHead):
     def forward_train(self, x, gt_label, **kwargs):
         if isinstance(x, tuple):
             x = x[-1]
-        x = F.normalize(self.refactor(x), dim=-1)
-        cls_score = x.matmul(F.normalize(self.fc, dim=-1)) * self.scale
+        x = x.view(x.size(0), -1)
+        x = self.standardize(x)
+        x = self.refactor(x)
+        x = F.normalize(x)
+        x = F.linear(x, F.normalize(self.fc)) / self.scale
 
-        losses = self.loss(cls_score, gt_label, **kwargs)
+        losses = self.loss(x, gt_label, **kwargs)
         return losses
