@@ -85,9 +85,13 @@ def parse_args():
         help='score threshold (default: 0.3)')
 
     parser.add_argument(
+        '--save-index',
+        action='store_true',
+        help='Save index in pickled faiss index file.')
+    parser.add_argument(
         '--save-results',
         action='store_true',
-        help='whether to use gpu to collect results.')
+        help='Save distance results.')
     parser.add_argument(
         '--results-prefix',
         default='res',
@@ -124,6 +128,12 @@ def parse_args():
         choices=['none', 'pytorch', 'slurm', 'mpi'],
         default='none',
         help='job launcher')
+
+    parser.add_argument(
+        '--no-index-samples',
+        default=False,
+        action='store_true',
+        help='Index train samples to index')
 
     parser.add_argument(
         '--max-train',
@@ -213,10 +223,14 @@ def add_gt_label_to_pipeline(dataset):
         dataset.pipeline.transforms[-1].keys.append('gt_label')
 
 
-def batch(iterable, n=1):
+def batch(iterable, n=1, limit=None):
+    total = 0
     current_batch = []
     for item in iterable:
         current_batch.append(item)
+        total += 1
+        if limit is not None and total == limit:
+            break
         if len(current_batch) == n:
             yield current_batch
             current_batch = []
@@ -228,21 +242,24 @@ def dataset_iterator(dataset, max_samples=0):
     for i, samples in enumerate(dataset):
         if max_samples and i >= max_samples:
             break
-        img = samples['img']
-        label = samples['gt_label']
-        yield img, label
+        yield samples['img'], samples['gt_label']
 
 
-def feature_iterator(model, dataset, batch_size=700):
+def feature_iterator(model, dataset, batch_size=700, inner_batch_size=10):
     my_iter = dataset_iterator(dataset)
     if batch_size:
         my_iter = batch(my_iter, batch_size)
 
     for img_labels in my_iter:
-        imgs, labels = zip(*img_labels)
-        with torch.no_grad():
-            feats = model.extract_feat(torch.stack(imgs))
-        yield feats[0].numpy().astype('float32'), np.array(labels)
+        imgs, labels = list(zip(*img_labels))
+        del img_labels
+        iter_feats = np.ndarray((0, model.backbone.feat_dim), dtype=np.float32)
+        for img_batch in batch(imgs, n=inner_batch_size):
+            with torch.no_grad():
+                feats = model.extract_feat(torch.stack(img_batch))
+                feats = feats[0].numpy().astype(np.float32)
+                iter_feats = np.vstack((iter_feats, feats))
+        yield iter_feats, np.array(labels)
 
 
 def baseline_iter(file_p):
@@ -322,7 +339,7 @@ def main():
     from mmcls.apis import init_model as feat_init_model
     model = feat_init_model(args.model, args.checkpoint, 'cpu')
 
-    if args.out is not None:
+    if (not args.no_index_samples) and (args.out is not None):
         args.out.write(
             'Index\tMetric\tNprobe\t'
             'Sec-Train\tSec-Index\tSec-Search\t'
@@ -339,7 +356,7 @@ def main():
 
     base_faiss_mem = faiss.get_mem_usage_kb() * 1024
 
-    index = None
+    index = bs_iter = None
 
     lsh_index_8 = faiss.IndexIDMap(faiss.IndexLSH(out_feats, out_feats*8))
     lsh_index_4 = faiss.IndexIDMap(faiss.IndexLSH(out_feats, out_feats*4))
@@ -388,19 +405,21 @@ def main():
         # ("IVF100P6,Flat", "IDMap,IVF100,Flat", {'nprobe': 6}, faiss.METRIC_L2),
         # ("IVF200P6,Flat", "IDMap,IVF200,Flat", {'nprobe': 6}, faiss.METRIC_L2),
         # ("IVF100P12,Flat", "IDMap,IVF100,Flat", {'nprobe': 12}, faiss.METRIC_L2),
-        # ("PCA400,IVF100P24,Flat", "IDMap,PCA400,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
+        # ("PCA400,IVF100NP24,Flat", "IDMap,PCA400,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
         # ("PCA300,IVF100P24,Flat", "IDMap,PCA300,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
         # ("PQ8x3", "IDMap,PQ8x3", dict(), faiss.METRIC_L2),
-        ("OPQ64,IVF100,PQ64", "IDMap,OPQ64,IVF100P24,PQ64", dict(), faiss.METRIC_L2),
+        # ("OPQ64,IVF100,PQ64", "IDMap,OPQ64,IVF100P24,PQ64", dict(), faiss.METRIC_L2),
         # ("OPQ64,IVF100P6,PQ64", "IDMap,OPQ64,IVF100P24,PQ64", {'nprobe': 6}, faiss.METRIC_L2),
-        # ("OPQ8x3,IVF100P12,PQ8x3", "IDMap,OPQ8x3,IVF100,PQ8x3", {'nprobe': 12}, faiss.METRIC_L2),
+        ("OPQ16x3,IVF60P12,PQ16x3", "IDMap,OPQ16x3,IVF60,PQ16x3", {'nprobe': 12}, faiss.METRIC_L2),
+        ("OPQ16x3,IVF80P12,PQ16x3", "IDMap,OPQ16x3,IVF80,PQ16x3", {'nprobe': 12}, faiss.METRIC_L2),
+        ("OPQ16x3,IVF120P12,PQ16x3", "IDMap,OPQ16x3,IVF120,PQ16x3", {'nprobe': 12}, faiss.METRIC_L2),
         # ("OPQ8x3,IVF100P6,PQ8x3", "IDMap,OPQ8x3,IVF100,PQ8x3", {'nprobe': 6}, faiss.METRIC_L2),
         # ("PCA256,IVF100P24,Flat", "IDMap,PCA256,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
         # ("IVF100P24,Flat", "IDMap,IVF100,Flat", {'nprobe': 24}, faiss.METRIC_L2),
         # ("IVF64P3,Flat", "IDMap,IVF64,Flat", {'nprobe': 3}, faiss.METRIC_L2),
         # ("IVF64P6,Flat", "IDMap,IVF64,Flat", {'nprobe': 6}, faiss.METRIC_L2),
         # ("IVF64P12,Flat", "IDMap,IVF64,Flat", {'nprobe': 12}, faiss.METRIC_L2),
-        ("IVF64,Flat", "IDMap,IVF64,Flat", dict(), faiss.METRIC_L2),
+        # ("IVF64,Flat", "IDMap,IVF64,Flat", dict(), faiss.METRIC_L2),
 
             # ("IVF500P3,Flat", "IVF500,Flat", {'ivf.nprobe': 3}, faiss.METRIC_L2),
 
@@ -417,12 +436,6 @@ def main():
     ):
 
         del index
-
-        if args.baseline:
-            args.baseline.seek(0)
-            bs_iter = baseline_iter(args.baseline)
-        else:
-            bs_iter = None
 
         if isinstance(faiss_index, str):
             logging.info("Using index %s with metric %s", faiss_index, faiss_metric)
@@ -454,32 +467,46 @@ def main():
             index.train(feats)
             t_train += (time.time() - t0)
 
-        logging.info(
-            "Index %s samples of batch #1", feats.shape[0])
-        t0 = time.time()
-        index.add_with_ids(feats, labels)
-        t_index = (time.time() - t0)
-
-        b_failed = None
-        for i, (feats, labels) in enumerate(feat_iter, start=2):
-            logging.info("Index %s samples of batch #%s", feats.shape[0], i)
+        if not args.no_index_samples:
+            logging.info(
+                "Index %s samples of batch #1", feats.shape[0])
             t0 = time.time()
-            try:
-                index.add_with_ids(feats, labels)
-            except RuntimeError as e:
-                logging.error("Error during indexing: %s", str(e))
-                b_failed = e
-                break
+            index.add_with_ids(feats, labels)
+            t_index = (time.time() - t0)
 
-            t_index += (time.time() - t0)
+            del feats, labels
 
-        if b_failed is not None:
-            raise b_failed
+            b_failed = None
+            for i, (feats, labels) in enumerate(feat_iter, start=2):
+                logging.info("Index %s samples of batch #%s", feats.shape[0], i)
+                t0 = time.time()
+                try:
+                    index.add_with_ids(feats, labels)
+                except RuntimeError as e:
+                    logging.error("Error during indexing: %s", str(e))
+                    b_failed = e
+                    break
+
+                t_index += (time.time() - t0)
+
+            if b_failed is not None:
+                raise b_failed
+
+        if args.save_index:
+            faiss.write_index(
+                index,
+                "faiss_{}_{}.pkl".format(args.results_prefix, faiss_name)
+            )
 
         f_result = open(
             "{}_{}.pkl".format(args.results_prefix, faiss_name),
             mode="w+b",
         ) if args.save_results else None
+
+        dt_train = datetime.timedelta(seconds=t_train)
+        if args.no_index_samples:
+            logging.info("Train time %s", str(dt_train))
+            continue
 
         for probe in NPROBES:
 
@@ -491,6 +518,12 @@ def main():
                     "Could not change nprobe for index %s", faiss_name)
                 b_probe = False
                 probe = None
+
+            if args.baseline:
+                args.baseline.seek(0)
+                bs_iter = baseline_iter(args.baseline)
+            else:
+                bs_iter = None
 
             logging.info("Extracting test features...")
             t_search = 0
@@ -539,7 +572,6 @@ def main():
             if f_result is not None:
                 f_result.close()
 
-            dt_train = datetime.timedelta(seconds=t_train)
             dt_index = datetime.timedelta(seconds=t_index)
             dt_search = datetime.timedelta(seconds=t_search)
             mem_faiss_proc = faiss.get_mem_usage_kb() * 1024
