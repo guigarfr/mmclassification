@@ -63,9 +63,10 @@ class ProxyLinearClsHead(ClsHead):
         x = x.view(x.size(0), -1)
         x = self.standardize(x)
         x = self.refactor(x)
-        cls_score = F.normalize(x)
+        x = F.normalize(x)
+        x = F.linear(x, F.normalize(self.fc))
 
-        pred = F.softmax(cls_score, dim=1) if cls_score is not None else None
+        pred = F.softmax(x, dim=1) if x is not None else None
 
         return self.post_process(pred)
 
