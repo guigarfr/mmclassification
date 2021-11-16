@@ -163,4 +163,5 @@ def train_model(model,
         torch.cuda.empty_cache()
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
+    torch.cuda.empty_cache()
     runner.run(data_loaders, cfg.workflow)
