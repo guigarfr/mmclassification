@@ -690,7 +690,7 @@ class Resize(object):
                  size,
                  interpolation='bilinear',
                  adaptive_side='short',
-                 only_resize_bigger=True,
+                 only_resize_bigger=False,
                  backend='cv2'):
         assert isinstance(size, int) or (isinstance(size, tuple)
                                          and len(size) == 2)
