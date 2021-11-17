@@ -2,7 +2,6 @@
 import math
 
 import torch
-import torch.linalg as la
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -55,28 +54,25 @@ class ProxyLinearClsHead(ClsHead):
 
         self.scale = temperature_scale
 
-    def simple_test(self, x):
-        """Test without augmentation."""
+    def get_feats(self, x):
         if isinstance(x, tuple):
             x = x[-1]
 
-        x = x.view(x.size(0), -1)
+        x.view(x.size(0), -1)
         x = self.standardize(x)
         x = self.refactor(x)
-        x = F.normalize(x)
-        x = F.linear(x, F.normalize(self.fc))
+        return F.normalize(x)
 
+    def simple_test(self, x):
+        """Test without augmentation."""
+        x = self.get_feats(x)
+        x = F.linear(x, F.normalize(self.fc))
         pred = F.softmax(x, dim=1) if x is not None else None
 
         return self.post_process(pred)
 
     def forward_train(self, x, gt_label, **kwargs):
-        if isinstance(x, tuple):
-            x = x[-1]
-        x = x.view(x.size(0), -1)
-        x = self.standardize(x)
-        x = self.refactor(x)
-        x = F.normalize(x)
+        x = self.get_feats(x)
         x = F.linear(x, F.normalize(self.fc)) / self.scale
 
         losses = self.loss(x, gt_label, **kwargs)

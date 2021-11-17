@@ -85,6 +85,10 @@ class ImageClassifier(BaseClassifier):
                 x = x[-1]
         if self.with_neck:
             x = self.neck(x)
+
+        if hasattr(self.head, 'get_feats') and callable(self.head.get_feats):
+            x = self.head.get_feats(x)
+
         return x
 
     def forward_train(self, img, gt_label, **kwargs):
