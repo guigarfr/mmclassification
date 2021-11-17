@@ -365,7 +365,7 @@ def main():
     NPROBES = [1, 3, 6, 12, 24]
 
     for faiss_name, faiss_index, params, faiss_metric in (
-        # ("Flat_L2", "IDMap,Flat", dict(), faiss.METRIC_L2),
+        ("Flat_L2", "IDMap,Flat", dict(), faiss.METRIC_L2),
         # ("IndexLSH{}".format(out_feats*16), dict(), lsh_index_8, None),
         # ("IndexLSH{}".format(out_feats*8), dict(), lsh_index_8, None),
         # ("IndexLSH{}".format(out_feats*4), dict(), lsh_index_4, None),
