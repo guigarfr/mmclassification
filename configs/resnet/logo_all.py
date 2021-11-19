@@ -18,7 +18,7 @@
 
 _base_ = [
     '../_base_/models/resnet50_pretrained.py',
-    '../_base_/datasets/logo_all.py',
+    '../_base_/datasets/logo_all_resize.py',
     '../_base_/default_runtime.py'
 ]
 
