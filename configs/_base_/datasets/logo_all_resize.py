@@ -246,6 +246,7 @@ test_openbrand = dict(
         'test_20210409_20_reduced.json',
     ],
     data_folders=data_folders,
+    ann_prefix=ob_root+'annotations/',
     data_prefix=ob_root,
     class_unifier=class_unifier,
 )
