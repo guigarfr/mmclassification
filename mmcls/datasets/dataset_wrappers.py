@@ -62,6 +62,10 @@ class ConcatDataset(_ConcatDataset):
                 else:
                     accumulated_results[k] = [v]
 
+        all_results = {
+            k1: {k2: v2 for k2, v2 in v1.items() if not isinstance(v2, dict)}
+            for k1, v1 in all_results.items()
+        }
         for k in accumulated_results.keys():
             accumulated_results[k] = np.mean(accumulated_results[k])
 
