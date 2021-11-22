@@ -72,7 +72,7 @@ class ProxyLinearClsHead(ClsHead):
         return self.post_process(pred)
 
     def forward_train(self, x, gt_label, **kwargs):
-        x = self.get_feats(x)
+        # x = self.get_feats(x)
         x = F.linear(x, F.normalize(self.fc)) / self.scale
 
         losses = self.loss(x, gt_label, **kwargs)
