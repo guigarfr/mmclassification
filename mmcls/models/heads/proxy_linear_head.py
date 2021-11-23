@@ -65,14 +65,12 @@ class ProxyLinearClsHead(ClsHead):
 
     def simple_test(self, x):
         """Test without augmentation."""
-        x = self.get_feats(x)
         x = F.linear(x, F.normalize(self.fc))
         pred = F.softmax(x, dim=1) if x is not None else None
 
         return self.post_process(pred)
 
     def forward_train(self, x, gt_label, **kwargs):
-        # x = self.get_feats(x)
         x = F.linear(x, F.normalize(self.fc)) / self.scale
 
         losses = self.loss(x, gt_label, **kwargs)
