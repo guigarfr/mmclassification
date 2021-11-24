@@ -61,13 +61,6 @@ class TPSResNet(ResNet):
 
     def __init__(self,
                  in_channels=3,
-                 init_cfg=[
-                     dict(type='Kaiming', layer=['Conv2d']),
-                     dict(
-                         type='Constant',
-                         val=1,
-                         layer=['_BatchNorm', 'GroupNorm'])
-                 ],
                  device='gpu',
                  height=224,
                  width=224,
@@ -75,7 +68,7 @@ class TPSResNet(ResNet):
                  **kwargs
     ):
 
-        super(ResNet, self).__init__(init_cfg, **kwargs)
+        super(TPSResNet, self).__init__(**kwargs)
         self.transformation = TPS_SpatialTransformerNetwork(
             F=num_fiducial,
             I_size=(height, width),
