@@ -7,7 +7,7 @@ _base_ = [
 model = dict(head=dict(num_classes=1866))
 
 data = dict(
-    samples_per_gpu=16,
+    samples_per_gpu=8,
     workers_per_gpu=4,
 )
 evaluation = dict(interval=1, metric=['accuracy', 'crossentropy'])
