@@ -61,20 +61,18 @@ class TPSResNet(ResNet):
 
     def __init__(self,
                  depth,
-                 in_channels=3,
                  device=torch.device('cuda'),
                  height=224,
                  width=224,
                  num_fiducial=20,
                  **kwargs
     ):
-
         super(TPSResNet, self).__init__(depth, **kwargs)
         self.transformation = TPS_SpatialTransformerNetwork(
             F=num_fiducial,
             I_size=(height, width),
             I_r_size=(height, width),
-            I_channel_num=in_channels,
+            I_channel_num=3,
             device=device
         )
 

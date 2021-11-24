@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import torch
 import torch.utils.checkpoint as cp
 
 from ..builder import BACKBONES
@@ -116,11 +117,13 @@ class TPSSEResNet(TPSResNet):
         152: (SEBottleneck, (3, 8, 36, 3))
     }
 
-    def __init__(self, depth, se_ratio=16, height=224, width=224, **kwargs):
+    def __init__(self, depth, se_ratio=16, height=224, width=224,
+                 device=torch.device('cuda'), **kwargs):
         if depth not in self.arch_settings:
             raise KeyError(f'invalid depth {depth} for SEResNet')
         self.se_ratio = se_ratio
-        super(TPSSEResNet, self).__init__(depth, height, width, **kwargs)
+        super(TPSSEResNet, self).__init__(
+            depth, height=height, width=width, device=device, **kwargs)
 
     def make_res_layer(self, **kwargs):
         return ResLayer(se_ratio=self.se_ratio, **kwargs)
