@@ -630,7 +630,9 @@ class Pad(object):
                  size=None,
                  pad_to_square=False,
                  pad_val=0,
-                 padding_mode='constant'):
+                 padding_mode='constant',
+                 centered=True
+    ):
         assert (size is None) ^ (pad_to_square is False), \
             'Only one of [size, pad_to_square] should be given, ' \
             f'but get {(size is not None) + (pad_to_square is not False)}'
@@ -638,6 +640,7 @@ class Pad(object):
         self.pad_to_square = pad_to_square
         self.pad_val = pad_val
         self.padding_mode = padding_mode
+        self.centered = centered
 
     def __call__(self, results):
         for key in results.get('img_fields', ['img']):
@@ -647,11 +650,29 @@ class Pad(object):
                     max(img.shape[0], img.shape[1]) for _ in range(2))
             else:
                 target_size = self.size
-            img = mmcv.impad(
-                img,
-                shape=target_size,
-                pad_val=self.pad_val,
-                padding_mode=self.padding_mode)
+
+            if not self.centered:
+                img = mmcv.impad(
+                    img,
+                    shape=target_size,
+                    pad_val=self.pad_val,
+                    padding_mode=self.padding_mode)
+            else:
+                left_fill = int((target_size[0] - img.shape[0]) / 2)
+                right_fill = target_size[0] - (img.shape[0] + left_fill)
+                top_fill = int((target_size[1] - img.shape[1]) / 2)
+                bottom_fill = target_size[1] - (img.shape[1] + top_fill)
+                padding = (
+                    bottom_fill,
+                    left_fill,
+                    top_fill,
+                    right_fill
+                )
+                img = mmcv.impad(
+                    img,
+                    padding=padding,
+                    pad_val=self.pad_val,
+                    padding_mode=self.padding_mode)
             results[key] = img
             results['img_shape'] = img.shape
         return results
