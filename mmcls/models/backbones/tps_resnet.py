@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-import torch.utils.checkpoint as cp
+import torch
 
 from ..builder import BACKBONES
 from ..utils.tps_stn import TPS_SpatialTransformerNetwork
@@ -62,7 +62,7 @@ class TPSResNet(ResNet):
     def __init__(self,
                  depth,
                  in_channels=3,
-                 device='gpu',
+                 device=torch.device('cuda'),
                  height=224,
                  width=224,
                  num_fiducial=20,

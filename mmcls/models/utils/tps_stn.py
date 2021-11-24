@@ -15,7 +15,7 @@ class TPS_SpatialTransformerNetwork(nn.Module):
             I_r_size,
             F=20,
             I_channel_num=3,
-            device=torch.device('cpu')
+            device=torch.device('cuda')
     ):
         """
         Based on RARE TPS.
@@ -129,7 +129,7 @@ class LocalizationNetwork(nn.Module):
 class GridGenerator(nn.Module):
     """Grid Generator of RARE. Produces P_prime by multiplying T with P."""
 
-    def __init__(self, F, I_r_size, device=torch.device('cpu')):
+    def __init__(self, F, I_r_size, device=torch.device('cuda')):
         """Generate P_hat and inv_delta_C for later."""
         super(GridGenerator, self).__init__()
         self.eps = 1e-6
