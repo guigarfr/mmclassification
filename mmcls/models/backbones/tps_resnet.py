@@ -60,6 +60,7 @@ class TPSResNet(ResNet):
     """
 
     def __init__(self,
+                 depth,
                  in_channels=3,
                  device='gpu',
                  height=224,
@@ -68,7 +69,7 @@ class TPSResNet(ResNet):
                  **kwargs
     ):
 
-        super(TPSResNet, self).__init__(**kwargs)
+        super(TPSResNet, self).__init__(depth, **kwargs)
         self.transformation = TPS_SpatialTransformerNetwork(
             F=num_fiducial,
             I_size=(height, width),
