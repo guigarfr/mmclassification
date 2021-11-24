@@ -60,24 +60,7 @@ class TPSResNet(ResNet):
     """
 
     def __init__(self,
-                 depth,
                  in_channels=3,
-                 stem_channels=64,
-                 base_channels=64,
-                 expansion=None,
-                 num_stages=4,
-                 strides=(1, 2, 2, 2),
-                 dilations=(1, 1, 1, 1),
-                 out_indices=(3,),
-                 style='pytorch',
-                 deep_stem=False,
-                 avg_down=False,
-                 frozen_stages=-1,
-                 conv_cfg=None,
-                 norm_cfg=dict(type='BN', requires_grad=True),
-                 norm_eval=False,
-                 with_cp=False,
-                 zero_init_residual=True,
                  init_cfg=[
                      dict(type='Kaiming', layer=['Conv2d']),
                      dict(
@@ -89,15 +72,16 @@ class TPSResNet(ResNet):
                  height=224,
                  width=224,
                  num_fiducial=20,
+                 **kwargs
     ):
 
-        super(ResNet, self).__init__(init_cfg)
+        super(ResNet, self).__init__(init_cfg, **kwargs)
         self.transformation = TPS_SpatialTransformerNetwork(
             F=num_fiducial,
             I_size=(height, width),
             I_r_size=(height, width),
             I_channel_num=in_channels,
-            device='gpu'
+            device=device
         )
 
     def init_weights(self):
