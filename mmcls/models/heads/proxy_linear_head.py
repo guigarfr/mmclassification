@@ -49,10 +49,12 @@ class ProxyLinearClsHead(ClsHead):
         self.fc = nn.Parameter(torch.Tensor(
             self.num_classes, self.out_features))
 
+        self.scale = temperature_scale
+
+    def init_weights(self):
+        super(ProxyLinearClsHead, self).init_weights()
         stdv = 1. / math.sqrt(self.fc.size(1))
         self.fc.data.uniform_(-stdv, stdv)
-
-        self.scale = temperature_scale
 
     def get_feats(self, x):
         if isinstance(x, tuple):
