@@ -38,9 +38,6 @@ class TPS_SpatialTransformerNetwork(nn.Module):
         self.GridGenerator = GridGenerator(self.F, self.I_r_size, device=device)
         self.device = device
 
-    def init_weights(self):
-        self.LocalizationNetwork.init_weights()
-
     def forward(self, batch_I):
         batch_C_prime = self.LocalizationNetwork(batch_I)  # batch_size x K x 2
         build_P_prime = self.GridGenerator.build_P_prime(batch_C_prime)  #
@@ -97,8 +94,7 @@ class LocalizationNetwork(nn.Module):
             nn.Linear(512, 256), nn.ReLU(True))
         self.localization_fc2 = nn.Linear(256, self.F * 2)
 
-    def init_weights(self):
-        # Init fc2 in LocalizationNetwork
+        # init_weights
         self.localization_fc2.weight.data.fill_(0)
         """ see RARE paper Fig. 6 (a) """
         ctrl_pts_x = np.linspace(-1.0, 1.0, int(self.F / 2))
@@ -107,6 +103,7 @@ class LocalizationNetwork(nn.Module):
         ctrl_pts_top = np.stack([ctrl_pts_x, ctrl_pts_y_top], axis=1)
         ctrl_pts_bottom = np.stack([ctrl_pts_x, ctrl_pts_y_bottom], axis=1)
         initial_bias = np.concatenate([ctrl_pts_top, ctrl_pts_bottom], axis=0)
+        # Init fc2 in LocalizationNetwork
         self.localization_fc2.bias.data = torch.from_numpy(
             initial_bias).float().view(-1)
 

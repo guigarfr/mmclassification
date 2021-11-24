@@ -120,8 +120,7 @@ class TPSSEResNet(TPSResNet):
         if depth not in self.arch_settings:
             raise KeyError(f'invalid depth {depth} for SEResNet')
         self.se_ratio = se_ratio
-        super(TPSSEResNet, self).__init__(depth, height=224, width=224,
-                                          **kwargs)
+        super(TPSSEResNet, self).__init__(depth, height, width, **kwargs)
 
     def make_res_layer(self, **kwargs):
         return ResLayer(se_ratio=self.se_ratio, **kwargs)

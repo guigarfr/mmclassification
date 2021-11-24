@@ -78,10 +78,6 @@ class TPSResNet(ResNet):
             device=device
         )
 
-    def init_weights(self):
-        super(TPSResNet, self).init_weights()
-        self.transformation.init_weights()
-
     def forward(self, x):
         x = self.transformation(x)
         return super(TPSResNet, self).forward(x)
