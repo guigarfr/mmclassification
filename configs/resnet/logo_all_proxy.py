@@ -18,7 +18,7 @@
 
 _base_ = [
     '../_base_/models/resnet50_proxy.py',
-    '../_base_/datasets/logo_all.py',
+    '../_base_/datasets/logo_all_resize.py',
     '../_base_/default_runtime.py'
 ]
 
@@ -29,7 +29,7 @@ data = dict(
     workers_per_gpu=4,
 )
 evaluation = dict(interval=5, metric=['accuracy', 'crossentropy'])
-optimizer = dict(type='SGD', lr=0.2, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # learning policy
 lr_config = dict(policy='step', step=[30, 60, 90])
