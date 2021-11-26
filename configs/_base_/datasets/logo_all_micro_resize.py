@@ -1,0 +1,148 @@
+data_root = '/home/ubuntu/data/'
+
+img_norm_cfg = dict(
+    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+
+train_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(type='LoadAnnotations', with_bbox=True),
+    dict(type='CropBoundingBox'),
+    dict(type='Resize', size=(224, -1), adaptive_side='long',
+         only_resize_bigger=False),
+    dict(type='Pad', size=(224, 224), centered=False),
+    dict(type='Normalize', **img_norm_cfg),
+    dict(type='ImageToTensor', keys=['img']),
+    dict(type='Collect', keys=['img', 'gt_label']),
+]
+test_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(type='LoadAnnotations', with_bbox=True),
+    dict(type='CropBoundingBox'),
+    dict(type='Resize', size=(224, -1), adaptive_side='long',
+         only_resize_bigger=False),
+    dict(type='Pad', size=(224, 224), centered=False),
+    dict(type='Normalize', **img_norm_cfg),
+    dict(type='ImageToTensor', keys=['img']),
+    dict(type='Collect', keys=['img']),
+]
+
+all_classes = data_root + 'all_classes_v4.txt'
+class_unifier = data_root + 'class_unification_dict_v4.json'
+ob_root = data_root + 'OpenBrands/'
+train_openbrand = dict(
+    type='ConcatDatasetBuilder',
+    dataset_type='OpenBrandDataset',
+    classes=all_classes,
+    pipeline=train_pipeline,
+    ann_files=['train_20210409_14_reduced.json',
+               'train_20210409_15_reduced.json'],
+    data_folders=['电商标识检测大赛_train_20210409_14/',
+                  '电商标识检测大赛_train_20210409_15/'],
+    ann_prefix=ob_root+'annotations/',
+    data_prefix=ob_root,
+    class_unifier=class_unifier,
+)
+
+validation_openbrand = dict(
+    type='ConcatDatasetBuilder',
+    dataset_type='OpenBrandDataset',
+    classes=all_classes,
+    pipeline=test_pipeline,
+    ann_files=['validation_20210409_14_reduced.json',
+               'validation_20210409_15_reduced.json'],
+    data_folders=['电商标识检测大赛_train_20210409_14/',
+                  '电商标识检测大赛_train_20210409_15/'],
+    ann_prefix=ob_root+'annotations/',
+    data_prefix=ob_root,
+    class_unifier=class_unifier,
+)
+
+test_openbrand = dict(
+    type='ConcatDatasetBuilder',
+    dataset_type='OpenBrandDataset',
+    classes=all_classes,
+    pipeline=test_pipeline,
+    ann_files=['test_20210409_14_reduced.json',
+               'test_20210409_15_reduced.json'],
+    data_folders=['电商标识检测大赛_train_20210409_14/',
+                  '电商标识检测大赛_train_20210409_15/'],
+    ann_prefix=ob_root+'annotations/',
+    data_prefix=ob_root,
+    class_unifier=class_unifier,
+)
+
+ld_root = data_root + 'LogoDet-3K/'
+rp_root = data_root + 'logo_dataset/'
+data = dict(
+    samples_per_gpu=2,
+    workers_per_gpu=1,
+    train=[
+            dict(
+                type='XMLDataset',
+                classes=all_classes,
+                ann_file=ld_root + 'train_micro.txt',
+                ann_subdir='',
+                data_prefix=ld_root,
+                img_subdir='',
+                pipeline=train_pipeline,
+                class_unifier=class_unifier,
+            ),
+            dict(
+                type='XMLDataset',
+                classes=all_classes,
+                ann_file=rp_root + 'ImageSets/Main/train_micro.txt',
+                ann_subdir='Annotations',
+                data_prefix=rp_root,
+                img_subdir='JPEGImages',
+                pipeline=train_pipeline,
+                class_unifier=class_unifier,
+            ),
+            train_openbrand,
+        ],
+    val=[
+            dict(
+                type='XMLDataset',
+                classes=all_classes,
+                ann_file=ld_root + 'val_micro.txt',
+                ann_subdir='',
+                data_prefix=ld_root,
+                img_subdir='',
+                pipeline=test_pipeline,
+                class_unifier=class_unifier,
+            ),
+            dict(
+                type='XMLDataset',
+                classes=all_classes,
+                ann_file=rp_root + 'ImageSets/Main/validation_micro.txt',
+                ann_subdir='Annotations',
+                data_prefix=rp_root,
+                img_subdir='JPEGImages',
+                pipeline=test_pipeline,
+                class_unifier=class_unifier,
+            ),
+            validation_openbrand,
+        ],
+    test=[
+             dict(
+                 type='XMLDataset',
+                 classes=all_classes,
+                 ann_file=ld_root + 'test_micro.txt',
+                 ann_subdir='',
+                 data_prefix=ld_root,
+                 img_subdir='',
+                 pipeline=test_pipeline,
+                 class_unifier=class_unifier,
+             ),
+             dict(
+                 type='XMLDataset',
+                 classes=all_classes,
+                 ann_file=rp_root + 'ImageSets/Main/test_micro.txt',
+                 ann_subdir='Annotations',
+                 data_prefix=rp_root,
+                 img_subdir='JPEGImages',
+                 pipeline=test_pipeline,
+                 class_unifier=class_unifier,
+            ),
+            test_openbrand,
+        ]
+)
