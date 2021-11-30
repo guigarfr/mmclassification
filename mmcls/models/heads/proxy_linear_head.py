@@ -51,8 +51,6 @@ class ProxyLinearClsHead(ClsHead):
 
         self.scale = temperature_scale
 
-    def init_weights(self):
-        super(ProxyLinearClsHead, self).init_weights()
         stdv = 1. / math.sqrt(self.fc.size(1))
         self.fc.data.uniform_(-stdv, stdv)
 
