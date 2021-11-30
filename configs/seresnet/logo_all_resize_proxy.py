@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/seresnet50_proxy.py',
-    '../_base_/datasets/logo_all_resize.py',
+    '../_base_/datasets/logo_all_resize_pad.py',
     '../_base_/default_runtime.py'
 ]
 
