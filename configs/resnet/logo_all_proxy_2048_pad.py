@@ -26,7 +26,7 @@ model = dict(head=dict(num_classes=1866))
 
 data = dict(
     samples_per_gpu=128,
-    workers_per_gpu=4,
+    workers_per_gpu=6,
 )
 evaluation = dict(interval=5, metric=['accuracy', 'crossentropy'])
 optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0001)
@@ -35,4 +35,4 @@ optimizer_config = dict(grad_clip=None)
 lr_config = dict(policy='step', step=[30, 60, 90])
 runner = dict(type='EpochBasedRunner', max_epochs=100)
 
-work_dir = "/home/ubuntu/train_checkpoints/resnet_proxy"
+work_dir = "/home/ubuntu/train_checkpoints/resnet_proxy_2048_pad"
