@@ -124,8 +124,8 @@ test_pipeline = [
     dict(type='CropBoundingBox'),
     dict(type='Resize', size=(224, -1), adaptive_side='long',
          only_resize_bigger=False),
-    dict(type='Pad', size=(224, 224)),
     dict(type='Normalize', **img_norm_cfg),
+    dict(type='Pad', size=(224, 224)),
     dict(type='ImageToTensor', keys=['img']),
     dict(type='Collect', keys=['img']),
 ]
