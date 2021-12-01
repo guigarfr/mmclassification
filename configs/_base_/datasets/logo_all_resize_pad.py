@@ -104,7 +104,6 @@ train_pipeline = [
     dict(type='CropBoundingBox'),
     dict(type='Resize', size=(224, -1), adaptive_side='long',
          only_resize_bigger=False),
-    dict(type='Pad', size=(224, 224)),
     dict(type='RandomFlip', flip_prob=0.5, direction='horizontal'),
     dict(type='AutoAugment', policies=policies),
     dict(
@@ -115,6 +114,7 @@ train_pipeline = [
         max_area_ratio=1 / 10,
         fill_color=img_norm_cfg['mean']),
     dict(type='Normalize', **img_norm_cfg),
+    dict(type='Pad', size=(224, 224)),
     dict(type='ImageToTensor', keys=['img']),
     dict(type='Collect', keys=['img', 'gt_label']),
 ]
