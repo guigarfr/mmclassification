@@ -97,9 +97,9 @@ class TPSSEResNet(TPSResNet):
             in resblocks to let them behave as identity. Default: True.
 
     Example:
-        >>> from mmcls.models import SEResNet
+        >>> from mmcls.models import TPSSEResNet
         >>> import torch
-        >>> self = SEResNet(depth=50)
+        >>> self = TPSSEResNetSEResNet(depth=50, height=224, width=224,device=torch.device('cuda'))
         >>> self.eval()
         >>> inputs = torch.rand(1, 3, 224, 224)
         >>> level_outputs = self.forward(inputs)
