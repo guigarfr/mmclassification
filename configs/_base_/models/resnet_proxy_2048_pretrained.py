@@ -1,7 +1,6 @@
 # model settings
 model = dict(
     type='ImageClassifier',
-    pretrained='/home/ubuntu/checkpoints/resnet50-19c8e357.pth',
     backbone=dict(
         init_cfg=dict(
             type='Pretrained',
