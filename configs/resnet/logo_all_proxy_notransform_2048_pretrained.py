@@ -25,7 +25,7 @@ _base_ = [
 model = dict(head=dict(num_classes=1866))
 
 data = dict(
-    samples_per_gpu=128,
+    samples_per_gpu=256,
     workers_per_gpu=8,
 )
 
